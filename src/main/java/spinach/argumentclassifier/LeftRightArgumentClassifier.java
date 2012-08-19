@@ -5,6 +5,7 @@ import spinach.classify.Classifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 import spinach.sentence.TokenSentence;
+import spinach.sentence.TokenSentenceAndPredicates;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -15,11 +16,9 @@ public class LeftRightArgumentClassifier extends ArgumentClassifier{
         super(classifier, featureGenerator);
     }
 
-    public SemanticFrameSet framesWithArguments(SemanticFrameSet sentenceAndPredicates) {
-        SemanticFrameSet frameSet = new SemanticFrameSet(sentenceAndPredicates.sentence());
+    public SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates) {
+        SemanticFrameSet frameSet = new SemanticFrameSet(sentenceAndPredicates);
         frameSet.addPredicates(sentenceAndPredicates.getPredicateList());
-
-        TokenSentence sentence = frameSet.sentence();
 
         Set<String> previousLabels = new HashSet<String>();
         Set<Token> restrictedArgs = new HashSet<Token>();
@@ -45,8 +44,8 @@ public class LeftRightArgumentClassifier extends ArgumentClassifier{
                         continue;
 
                     if (!restrictedArgs.contains(argument)){
-                        restrictedArgs.addAll(sentence.getAncestors(argument));
-                        restrictedArgs.addAll(sentence.getDescendants(argument));
+                        restrictedArgs.addAll(frameSet.getAncestors(argument));
+                        restrictedArgs.addAll(frameSet.getDescendants(argument));
                         frameSet.addArgument(predicate, argument, label);
                         if (label.matches("A[0-9]"))
                             previousLabels.add(label);

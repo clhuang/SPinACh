@@ -1,3 +1,4 @@
+import edu.stanford.nlp.classify.Dataset;
 import edu.stanford.nlp.ling.Datum;
 import edu.stanford.nlp.util.Pair;
 import spinach.CorpusUtils;
@@ -11,25 +12,31 @@ import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 import spinach.sentence.TokenSentence;
 
+import java.util.List;
 import java.util.Map;
 
 public class Main {
     public static void main(String[] args){
-        SemanticFrameSet frameSet = CorpusUtils.parseCorpus("src/test/resources/test.closed").get(0);
+        List<SemanticFrameSet> frameSets = CorpusUtils.parseCorpus("src/test/resources/train.closed");
 
-        TokenSentence sentence = frameSet.sentence();
+        PerceptronClassifier perceptronClassifier = new PerceptronClassifier();
+        ArgumentFeatureGenerator argumentFeatureGenerator = new ArgumentFeatureGenerator();
+        ArgumentClassifier argumentClassifier = new EasyFirstArgumentClassifier(perceptronClassifier, argumentFeatureGenerator);
 
-        /*ArgumentFeatureGenerator argumentFeatureGenerator = new ArgumentFeatureGenerator();
-        ArgumentClassifier argumentClassifier = new EasyFirstArgumentClassifier(new PerceptronClassifier(), argumentFeatureGenerator);
-        for (Token t : ArgumentClassifier.argumentCandidates(sentence, sentence.tokenAt(3))){
-            System.out.println(t.form);
-        }*/
+        Dataset<String, String> goldDataset = argumentClassifier.goldDataset(frameSets);
 
-        PredicateFeatureGenerator predicateFeatureGenerator = new PredicateFeatureGenerator();
+
+
+        perceptronClassifier.train(goldDataset);
+
+        perceptronClassifier.save("src/test/resources/argumentClassifier.gz");
+
+
+        /*PredicateFeatureGenerator predicateFeatureGenerator = new PredicateFeatureGenerator();
         PredicateClassifier predicateClassifier = new PredicateClassifier(new PerceptronClassifier(), predicateFeatureGenerator);
         for (Datum<String, String> d : predicateClassifier.goldDataset(frameSet)){
             System.out.println(d.label());
             System.out.println();
-        }
+        }*/
     }
 }

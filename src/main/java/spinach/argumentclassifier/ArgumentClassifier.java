@@ -2,13 +2,13 @@ package spinach.argumentclassifier;
 
 import edu.stanford.nlp.classify.Dataset;
 import edu.stanford.nlp.ling.BasicDatum;
-import edu.stanford.nlp.ling.Datum;
 import edu.stanford.nlp.stats.Counter;
 import edu.stanford.nlp.util.Pair;
 import spinach.classify.Classifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 import spinach.sentence.TokenSentence;
+import spinach.sentence.TokenSentenceAndPredicates;
 
 import java.util.*;
 
@@ -22,11 +22,7 @@ public abstract class ArgumentClassifier {
         this.featureGenerator = featureGenerator;
     }
 
-    public abstract SemanticFrameSet framesWithArguments(SemanticFrameSet sentenceAndPredicates);
-
-    public static List<Token> argumentCandidates(SemanticFrameSet frameSet, Token predicate){
-        return argumentCandidates(frameSet.sentence(), predicate);
-    }
+    public abstract SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates);
 
     public static List<Token> argumentCandidates(TokenSentence sentence, Token predicate) {
         List<Token> argumentCandidates = new ArrayList<Token>();
@@ -92,6 +88,8 @@ public abstract class ArgumentClassifier {
         Dataset<String, String> dataset = new Dataset<String, String>();
         for (SemanticFrameSet frameSet : goldFrameSets)
             dataset.addAll(goldDataset(frameSet));
+
+        dataset.applyFeatureCountThreshold(3);
 
         return dataset;
     }

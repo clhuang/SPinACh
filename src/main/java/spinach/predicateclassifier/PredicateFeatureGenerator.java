@@ -3,9 +3,9 @@ package spinach.predicateclassifier;
 import edu.stanford.nlp.ling.BasicDatum;
 import edu.stanford.nlp.ling.Datum;
 import edu.stanford.nlp.process.WordShapeClassifier;
-import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 import spinach.sentence.TokenSentence;
+import spinach.sentence.TokenSentenceAndPredicates;
 
 import java.util.*;
 
@@ -51,13 +51,12 @@ public class PredicateFeatureGenerator {
         next2Token = null;
     }
 
-    public Datum<String, String> datumFrom(SemanticFrameSet sentenceFrame, Token predicate){
-        return new BasicDatum<String, String>(featuresOf(sentenceFrame, predicate));
+    public Datum<String, String> datumFrom(TokenSentenceAndPredicates sentence, Token predicate){
+        return new BasicDatum<String, String>(featuresOf(sentence, predicate));
     }
 
-    public Collection<String> featuresOf(SemanticFrameSet sentenceFrame, Token predicate){
+    public Collection<String> featuresOf(TokenSentence sentence, Token predicate){
 
-        TokenSentence sentence = sentenceFrame.sentence();
         List<String> features = new ArrayList<String>();
 
         centerToken(sentence, predicate);

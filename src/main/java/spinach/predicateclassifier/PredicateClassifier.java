@@ -6,6 +6,7 @@ import spinach.classify.Classifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 import spinach.sentence.TokenSentence;
+import spinach.sentence.TokenSentenceAndPredicates;
 
 import java.util.HashSet;
 import java.util.List;
@@ -20,24 +21,20 @@ public class PredicateClassifier {
         this.featureGenerator = featureGenerator;
     }
 
-    public SemanticFrameSet predicatesOf(SemanticFrameSet sentenceFrame){
-        return predicatesOf(sentenceFrame.sentence());
-    }
-
-    protected SemanticFrameSet predicatesOf(TokenSentence sentence){
-        SemanticFrameSet frameSet = new SemanticFrameSet(sentence);
-        for (Token t : sentence){
-            if (classifier.classOf(featureGenerator.datumFrom(frameSet, t)).equals("predicate"))
-                frameSet.addPredicate(t);
+    protected TokenSentenceAndPredicates predicatesOf(TokenSentence sentence){
+        TokenSentenceAndPredicates sentenceAndPredicates = new TokenSentenceAndPredicates(sentence);
+        for (Token t : sentenceAndPredicates){
+            if (classifier.classOf(featureGenerator.datumFrom(sentenceAndPredicates, t)).equals("predicate"))
+                sentenceAndPredicates.addPredicate(t);
         }
 
-        return frameSet;
+        return sentenceAndPredicates;
     }
 
     public Dataset<String, String> goldDataset(SemanticFrameSet goldFrames){
         Dataset<String, String> dataset = new Dataset<String, String>();
         HashSet<Token> predicates = new HashSet<Token>(goldFrames.getPredicateList());
-        for (Token t : goldFrames.sentence()){
+        for (Token t : goldFrames){
             BasicDatum<String, String> datum = (BasicDatum<String, String>) featureGenerator.datumFrom(goldFrames, t);
             if (predicates.contains(t))
                 datum.setLabel("predicate");
@@ -53,6 +50,8 @@ public class PredicateClassifier {
         Dataset<String, String> dataset = new Dataset<String, String>();
         for (SemanticFrameSet frameSet : goldFrameSet)
             dataset.addAll(goldDataset(frameSet));
+
+        dataset.applyFeatureCountThreshold(3);
 
         return dataset;
     }

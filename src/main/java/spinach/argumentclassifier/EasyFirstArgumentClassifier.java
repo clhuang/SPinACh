@@ -7,6 +7,7 @@ import edu.stanford.nlp.util.Pair;
 import spinach.classify.Classifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
+import spinach.sentence.TokenSentenceAndPredicates;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -18,12 +19,11 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier{
         super(classifier, featureGenerator);
     }
 
-    public SemanticFrameSet framesWithArguments(SemanticFrameSet sentenceAndPredicates){
+    public SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates){
 
-        SemanticFrameSet frameSet = new SemanticFrameSet(sentenceAndPredicates.sentence());
-        frameSet.addPredicates(sentenceAndPredicates.getPredicateList());
+        SemanticFrameSet frameSet = new SemanticFrameSet(sentenceAndPredicates);
 
-        for (Token predicate : sentenceAndPredicates.getPredicateList()){
+        for (Token predicate : frameSet.getPredicateList()){
             Map<Token, Counter<String>> argumentLabelScores =
                     new HashMap<Token, Counter<String>>();
 
@@ -44,8 +44,8 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier{
 
                 if(!argLabel.equals("NIL") && !argLabel.equals("SU") && !argLabel.startsWith("AM-")){
 
-                    Set<Token> restrictedTokens = frameSet.sentence().getDescendants(registeredArg);
-                    restrictedTokens.addAll(frameSet.sentence().getAncestors(registeredArg));
+                    Set<Token> restrictedTokens = frameSet.getDescendants(registeredArg);
+                    restrictedTokens.addAll(frameSet.getAncestors(registeredArg));
 
                     for (Token t : argumentLabelScores.keySet()){
                         if (restrictedTokens.contains(t)){

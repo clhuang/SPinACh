@@ -180,7 +180,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
         for(int i = 0; i < zWeights.length; i++)
             zWeights[i] = new LabelWeights(numFeatures);
 
-        System.err.println("Running perceptronClassifier on " + dataset.size() + " features");
+        System.err.println("Running perceptronClassifier on " + dataset.size() + " datum");
         long startTime = System.currentTimeMillis();
 
         for(int t = 0; t < epochs; t++){
@@ -189,6 +189,8 @@ public class PerceptronClassifier implements Classifier, Serializable {
             System.err.println();
             System.err.println("Epoch: " + (t+1) + " of " + epochs);
 
+            int correct = 0;
+
             for(int i = 0; i < dataset.size(); i++){
                 if (i%500000 == 0){
                     System.err.println("Datum: " + i + " of " + dataset.size());
@@ -196,6 +198,12 @@ public class PerceptronClassifier implements Classifier, Serializable {
                 }
                 train(dataset.getDatum(i));
             }
+
+            for(int i = 0; i < dataset.size(); i++){
+                if (classOf(dataset.getDatum(i)).equals(dataset.getDatum(i).label()))
+                    correct++;
+            }
+            System.out.println("Correct: " + correct + "/" + dataset.size());
 
         }
     }
@@ -287,10 +295,6 @@ public class PerceptronClassifier implements Classifier, Serializable {
                     LabelWeights.dotProduct(featureCounts, zWeights[i].avgWeights));
         }
         return scores;
-    }
-
-    private String trainingClassOf(Datum<String, String> datum){
-        return argMaxDotProduct(featuresOf(datum));
     }
 
     /**

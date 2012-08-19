@@ -18,8 +18,8 @@ import java.util.*;
  */
 public class TokenSentence implements Iterable<Token> {
 
-    private List<Token> sentenceTokens = new ArrayList<Token>();
-    private Multimap<Integer, Token> children = ArrayListMultimap.create();
+    protected List<Token> sentenceTokens = new ArrayList<Token>();
+    protected Multimap<Integer, Token> children = ArrayListMultimap.create();
 
     /**
      * Find the token at some index in this sentence.
@@ -51,15 +51,6 @@ public class TokenSentence implements Iterable<Token> {
         if (child.headSentenceIndex < 0)
             return null;
         return sentenceTokens.get(child.headSentenceIndex);
-    }
-
-    /**
-     * Gives the sentence as a list of tokens
-     *
-     * @return list of tokens in this sentence
-     */
-    public List<Token> tokens(){
-        return Collections.unmodifiableList(sentenceTokens);
     }
 
     /**

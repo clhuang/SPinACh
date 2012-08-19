@@ -18,7 +18,7 @@ public class ArgumentFeatureGenerator {
     public Collection<String> featuresOf(SemanticFrameSet frameSet,
                                   Token argument, Token predicate){
 
-        TokenSentence sentence = frameSet.sentence();
+        TokenSentence sentence = frameSet;
         Collection<String> features = new ArrayList<String>();
 
         /*

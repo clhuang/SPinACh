@@ -18,59 +18,17 @@ import java.util.List;
  * contains a list of predicates, and mappings from those predicates
  * to their arguments, and the semantic relations.
  */
-public class SemanticFrameSet{
+public class SemanticFrameSet extends TokenSentenceAndPredicates{
 
-    private TokenSentence sentence;
-    private List<Token> predicateList = new ArrayList<Token>();
+    public SemanticFrameSet(){};
+
+    public SemanticFrameSet(TokenSentenceAndPredicates sentenceAndPredicates){
+        super(sentenceAndPredicates);
+        predicateList = sentenceAndPredicates.predicateList;
+    }
+
     private Multimap<Token, Pair<Token, String>> relations =
             HashMultimap.create();
-
-    /**
-     * Initialize the frameset with a sentence, and no predicates
-     * or semantic relations.
-     *
-     * @param sentence sentence that the frameset will contain
-     */
-    public SemanticFrameSet(TokenSentence sentence){
-        this.sentence = sentence;
-    }
-
-    /**
-     * Get the contained sentence.
-     *
-     * @return sentence
-     */
-    public TokenSentence sentence(){
-        return sentence;
-    }
-
-    /**
-     * Add a predicate to the list of predicates.
-     *
-     * @param predicate predicate to be added
-     */
-    public void addPredicate(Token predicate){
-        predicateList.add(predicate);
-    }
-
-    /**
-     * Add a bunch of predicates to the list of predicates.
-     * The predicates should be in order.
-     *
-     * @param predicateList list of predicates to be appended
-     */
-    public void addPredicates(List<Token> predicateList){
-        predicateList.addAll(predicateList);
-    }
-
-    /**
-     * Returns an immutable copy of the list of predicates.
-     *
-     * @return list of predicates
-     */
-    public List<Token> getPredicateList(){
-        return Collections.unmodifiableList(predicateList);
-    }
 
     /**
      * Adds a relation between an argument and a predicate.
