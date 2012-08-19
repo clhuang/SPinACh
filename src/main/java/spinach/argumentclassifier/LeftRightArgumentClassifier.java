@@ -4,7 +4,6 @@ import edu.stanford.nlp.stats.Counter;
 import spinach.classify.Classifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
-import spinach.sentence.TokenSentence;
 import spinach.sentence.TokenSentenceAndPredicates;
 
 import java.util.HashSet;

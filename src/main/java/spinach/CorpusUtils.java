@@ -2,7 +2,6 @@ package spinach;
 
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
-import spinach.sentence.TokenSentence;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -45,8 +44,7 @@ public class CorpusUtils {
             while ((strLine = br.readLine()) != null) {
                 if (strLine.equals("")){    //sentence is over, enter sentence data into set
 
-                    TokenSentence sentence = new TokenSentence();
-                    SemanticFrameSet goldFrames = new SemanticFrameSet(sentence);
+                    SemanticFrameSet goldFrames = new SemanticFrameSet();
 
                     for (String[] tokenData : sentenceTokenData){   //add tokens into sentence; predicates into frames
                         Token token = new Token(
@@ -58,7 +56,7 @@ public class CorpusUtils {
                                 Integer.parseInt(tokenData[INDEX_COLUMN]) - 1
                         );      //subtract 1 from indices because corpus is 1-based, but code uses 0-base
 
-                        sentence.addToken(token);
+                        goldFrames.addToken(token);
 
                         if (!tokenData[PREDICATE_COLUMN].equals("_"))   //is a predicate
                             goldFrames.addPredicate(token);
@@ -67,7 +65,7 @@ public class CorpusUtils {
                     List<Token> predicates = goldFrames.getPredicateList();
 
                     for (String[] tokenData: sentenceTokenData){    //link arguments to predicates
-                        Token thisToken = sentence.tokenAt(Integer.parseInt(tokenData[INDEX_COLUMN]) - 1);
+                        Token thisToken = goldFrames.tokenAt(Integer.parseInt(tokenData[INDEX_COLUMN]) - 1);
                         for (int i = ARGS_START_COLUMN; i < tokenData.length; i++)
                             if (!tokenData[i].equals("_")){
                                 int predicateNum = i - ARGS_START_COLUMN;

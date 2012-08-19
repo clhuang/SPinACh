@@ -5,6 +5,7 @@ import edu.stanford.nlp.ling.Datum;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 import spinach.sentence.TokenSentence;
+import spinach.sentence.TokenSentenceAndPredicates;
 
 import java.util.*;
 
@@ -15,10 +16,9 @@ public class ArgumentFeatureGenerator {
         return new BasicDatum<String, String>(featuresOf(frameSet, argument, predicate));
     }
 
-    public Collection<String> featuresOf(SemanticFrameSet frameSet,
+    public Collection<String> featuresOf(TokenSentenceAndPredicates sentenceAndPredicates,
                                   Token argument, Token predicate){
 
-        TokenSentence sentence = frameSet;
         Collection<String> features = new ArrayList<String>();
 
         /*
@@ -31,7 +31,7 @@ public class ArgumentFeatureGenerator {
         features.add("predspfm|" + predicate.form);
         features.add("predppos|" + predicate.pos);
 
-        Token pmod = getPMOD(sentence, argument);
+        Token pmod = getPMOD(sentenceAndPredicates, argument);
         if (pmod != null){
             features.add("pmodsplm|" + pmod.lemma);
             features.add("pmodspfm|" + pmod.form);
@@ -44,7 +44,7 @@ public class ArgumentFeatureGenerator {
            */
         StringBuilder relationFeature = new StringBuilder("predcdeprel|");
         StringBuilder posFeature = new StringBuilder("predcpposs|");
-        for (Token child : sentence.getChildren(predicate)){
+        for (Token child : sentenceAndPredicates.getChildren(predicate)){
             relationFeature.append(child.syntacticHeadRelation).append(" ");
             posFeature.append(child.pos).append(" ");
         }
@@ -55,9 +55,9 @@ public class ArgumentFeatureGenerator {
         posFeature = new StringBuilder("vcimpposs|");
         Token vcimAncestor = predicate;
         while(vcimAncestor.syntacticHeadRelation.equals("VC") || vcimAncestor.syntacticHeadRelation.equals("IM"))
-            vcimAncestor = sentence.getParent(vcimAncestor);
+            vcimAncestor = sentenceAndPredicates.getParent(vcimAncestor);
 
-        for (Token ancestorChild : sentence.getChildren(vcimAncestor)){
+        for (Token ancestorChild : sentenceAndPredicates.getChildren(vcimAncestor)){
             relationFeature.append(" ").append(ancestorChild.syntacticHeadRelation);
             posFeature.append(" ").append(ancestorChild.pos);
             if (ancestorChild.equals(argument)){
@@ -83,10 +83,10 @@ public class ArgumentFeatureGenerator {
            * from the argument to the ancestor, the dependencies go upwards;
            * from the predicate to the ancestor, the dependencies go downwards
            */
-        Token ancestor = sentence.getCommonAncestor(argument, predicate);
+        Token ancestor = sentenceAndPredicates.getCommonAncestor(argument, predicate);
 
-        Deque<Token> argPath = sentence.ancestorPath(argument, ancestor);
-        Deque<Token> predPath = sentence.ancestorPath(predicate, ancestor);
+        Deque<Token> argPath = sentenceAndPredicates.ancestorPath(argument, ancestor);
+        Deque<Token> predPath = sentenceAndPredicates.ancestorPath(predicate, ancestor);
 
         argPath.removeLast(); //ancestor is last thing in both pathA and pathB, don't need it
         predPath.removeLast();

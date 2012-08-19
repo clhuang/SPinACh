@@ -1,19 +1,12 @@
 import edu.stanford.nlp.classify.Dataset;
-import edu.stanford.nlp.ling.Datum;
-import edu.stanford.nlp.util.Pair;
 import spinach.CorpusUtils;
 import spinach.argumentclassifier.ArgumentClassifier;
 import spinach.argumentclassifier.ArgumentFeatureGenerator;
 import spinach.argumentclassifier.EasyFirstArgumentClassifier;
 import spinach.classify.PerceptronClassifier;
-import spinach.predicateclassifier.PredicateClassifier;
-import spinach.predicateclassifier.PredicateFeatureGenerator;
 import spinach.sentence.SemanticFrameSet;
-import spinach.sentence.Token;
-import spinach.sentence.TokenSentence;
 
 import java.util.List;
-import java.util.Map;
 
 public class Main {
     public static void main(String[] args){

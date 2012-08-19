@@ -4,10 +4,7 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import edu.stanford.nlp.util.Pair;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * @author  Calvin Huang
@@ -20,7 +17,7 @@ import java.util.List;
  */
 public class SemanticFrameSet extends TokenSentenceAndPredicates{
 
-    public SemanticFrameSet(){};
+    public SemanticFrameSet(){}
 
     public SemanticFrameSet(TokenSentenceAndPredicates sentenceAndPredicates){
         super(sentenceAndPredicates);
