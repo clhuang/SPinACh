@@ -4,3 +4,14 @@
 *.jar
 *.war
 *.ear
+
+*.iml
+*.ipr
+*.iws
+.idea/
+
+target/
+
+src/test/resources
+
+
