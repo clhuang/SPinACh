@@ -21,7 +21,7 @@ public class PredicateFeatureGenerator {
     Token nextToken;
     Token next2Token;
 
-    private void centerToken(TokenSentence sentence, Token token){
+    private void centerToken(TokenSentence sentence, Token token) {
         int sentenceIndex = token.sentenceIndex;
 
         currToken = token;
@@ -43,7 +43,7 @@ public class PredicateFeatureGenerator {
             next2Token = Token.emptyToken;
     }
 
-    private void clearFocus(){
+    private void clearFocus() {
         prev2Token = null;
         prevToken = null;
         currToken = null;
@@ -51,11 +51,17 @@ public class PredicateFeatureGenerator {
         next2Token = null;
     }
 
-    public Datum<String, String> datumFrom(TokenSentenceAndPredicates sentence, Token predicate){
+    /**
+     * Generates a datum with features for some token and the surrrounding sentence
+     * @param sentence sentence the predicate is in
+     * @param predicate predicate to generate the features around
+     * @return datum
+     */
+    public Datum<String, String> datumFrom(TokenSentenceAndPredicates sentence, Token predicate) {
         return new BasicDatum<String, String>(featuresOf(sentence, predicate));
     }
 
-    public Collection<String> featuresOf(TokenSentence sentence, Token predicate){
+    public Collection<String> featuresOf(TokenSentence sentence, Token predicate) {
 
         List<String> features = new ArrayList<String>();
 
@@ -74,22 +80,22 @@ public class PredicateFeatureGenerator {
         features.add("numch|" + children.size());
 
         //add children features
-        for (Token child : children){
+        for (Token child : children) {
             int relativePosition = predicate.sentenceIndex - child.sentenceIndex;
             centerToken(sentence, child);
-            for (String s : lemmaFeatures()){
+            for (String s : lemmaFeatures()) {
                 features.add("c" + s);
                 if (CHILD_INDICES_IN_FEATURES)
                     features.add("c" + relativePosition + s);
             }
 
-            for (String s : formFeatures()){
+            for (String s : formFeatures()) {
                 features.add("c" + s);
                 if (CHILD_INDICES_IN_FEATURES)
                     features.add("c" + relativePosition + s);
             }
 
-            for (String s : posFeatures()){
+            for (String s : posFeatures()) {
                 features.add("c" + s);
                 if (CHILD_INDICES_IN_FEATURES)
                     features.add("c" + relativePosition + s);
@@ -97,13 +103,13 @@ public class PredicateFeatureGenerator {
 
             Iterator<String> parentIterator = predicateLemmaFeatures.iterator();
             Iterator<String> childIterator = lemmaFeatures().iterator();
-            while (parentIterator.hasNext() && childIterator.hasNext()){
+            while (parentIterator.hasNext() && childIterator.hasNext()) {
                 String childString = childIterator.next();
                 String parentString = parentIterator.next();
                 features.add("cp" +
                         childString + "||" +
                         parentString);
-                if(CHILD_INDICES_IN_FEATURES)
+                if (CHILD_INDICES_IN_FEATURES)
                     features.add("cp" + relativePosition +
                             childString + "||" +
                             parentString);
@@ -111,13 +117,13 @@ public class PredicateFeatureGenerator {
 
             parentIterator = predicateFormFeatures.iterator();
             childIterator = formFeatures().iterator();
-            while (parentIterator.hasNext() && childIterator.hasNext()){
+            while (parentIterator.hasNext() && childIterator.hasNext()) {
                 String childString = childIterator.next();
                 String parentString = parentIterator.next();
                 features.add("cp" +
                         childString + "||" +
                         parentString);
-                if(CHILD_INDICES_IN_FEATURES)
+                if (CHILD_INDICES_IN_FEATURES)
                     features.add("cp" + relativePosition +
                             childString + "||" +
                             parentString);
@@ -125,9 +131,9 @@ public class PredicateFeatureGenerator {
 
         }
 
-        if (CHILDREN_INDICES_FEATURE){
+        if (CHILDREN_INDICES_FEATURE) {
             StringBuilder s = new StringBuilder("chdif|");
-            for (Token child : sentence.getChildren(predicate)){
+            for (Token child : sentence.getChildren(predicate)) {
                 s.append(predicate.sentenceIndex - child.sentenceIndex);
                 s.append(" ");
             }
@@ -140,7 +146,7 @@ public class PredicateFeatureGenerator {
         return features;
     }
 
-    private List<String> lemmaFeatures(){
+    private List<String> lemmaFeatures() {
         List<String> features = new ArrayList<String>();
 
         //lemma unigrams
@@ -149,15 +155,15 @@ public class PredicateFeatureGenerator {
         features.add("splmu,i+1|" + nextToken.lemma);
 
         //lemma bigrams
-        features.add("splmb,i-1,i|" +		//<i-1, i>
+        features.add("splmb,i-1,i|" +        //<i-1, i>
                 prevToken.lemma + " " + currToken.lemma);
-        features.add("splmb,i,i+1|" +		//<i, i+1>
+        features.add("splmb,i,i+1|" +        //<i, i+1>
                 currToken.lemma + " " + nextToken.lemma);
 
         return features;
     }
 
-    private List<String> formFeatures(){
+    private List<String> formFeatures() {
         List<String> features = new ArrayList<String>();
 
         //form unigrams
@@ -170,28 +176,28 @@ public class PredicateFeatureGenerator {
         return features;
     }
 
-    private List<String> posFeatures(){
+    private List<String> posFeatures() {
         List<String> features = new ArrayList<String>();
 
         //pos unigrams
-        features.add("pposu,i-1|"	+ prevToken.pos);
+        features.add("pposu,i-1|" + prevToken.pos);
         features.add("pposu,i|" + currToken.pos);
-        features.add("pposu,i+1|"	+ nextToken.pos);
+        features.add("pposu,i+1|" + nextToken.pos);
 
         //pos bigrams
-        features.add("pposb,i-2,i-1|" +	//<i-2, i-1>
+        features.add("pposb,i-2,i-1|" +    //<i-2, i-1>
                 prev2Token.pos + " " + prevToken.pos);
-        features.add("pposb,i-1,i|" +		//<i-1, i>
+        features.add("pposb,i-1,i|" +        //<i-1, i>
                 prevToken.pos + " " + currToken.pos);
-        features.add("pposb,i,i+1|" +		//<i, i+1>
+        features.add("pposb,i,i+1|" +        //<i, i+1>
                 currToken.pos + " " + nextToken.pos);
-        features.add("pposb,i+1,i+2|" +	//<i, i+1>
+        features.add("pposb,i+1,i+2|" +    //<i, i+1>
                 nextToken.pos + " " + next2Token.pos);
 
         return features;
     }
 
-    private List<String> wordShapeFeatures(){
+    private List<String> wordShapeFeatures() {
         List<String> features = new ArrayList<String>();
 
         String wordShape = wordShapeOf(currToken);
@@ -224,7 +230,7 @@ public class PredicateFeatureGenerator {
         return features;
     }
 
-    private String wordShapeOf(Token t){
+    private String wordShapeOf(Token t) {
         return WordShapeClassifier.wordShape(t.form, WORD_SHAPER);
     }
 

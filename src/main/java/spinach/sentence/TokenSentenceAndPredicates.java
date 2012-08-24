@@ -7,9 +7,10 @@ import java.util.List;
 public class TokenSentenceAndPredicates extends TokenSentence {
     protected List<Token> predicateList = new ArrayList<Token>();
 
-    public TokenSentenceAndPredicates(){}
+    public TokenSentenceAndPredicates() {
+    }
 
-    public TokenSentenceAndPredicates(TokenSentence sentence){
+    public TokenSentenceAndPredicates(TokenSentence sentence) {
         sentenceTokens = sentence.sentenceTokens;
         children = sentence.children;
     }
@@ -19,7 +20,7 @@ public class TokenSentenceAndPredicates extends TokenSentence {
      *
      * @param predicate predicate to be added
      */
-    public void addPredicate(Token predicate){
+    public void addPredicate(Token predicate) {
         predicateList.add(predicate);
     }
 
@@ -29,7 +30,7 @@ public class TokenSentenceAndPredicates extends TokenSentence {
      *
      * @param predicateList list of predicates to be appended
      */
-    public void addPredicates(List<Token> predicateList){
+    public void addPredicates(List<Token> predicateList) {
         predicateList.addAll(predicateList);
     }
 
@@ -38,7 +39,17 @@ public class TokenSentenceAndPredicates extends TokenSentence {
      *
      * @return list of predicates
      */
-    public List<Token> getPredicateList(){
+    public List<Token> getPredicateList() {
         return Collections.unmodifiableList(predicateList);
+    }
+
+    /**
+     * Returns if a token in this sentence is a predicate
+     *
+     * @param t token in question
+     * @return if t is a predicate
+     */
+    public boolean isPredicate(Token t){
+        return predicateList.contains(t);
     }
 }

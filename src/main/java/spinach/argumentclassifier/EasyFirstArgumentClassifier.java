@@ -4,7 +4,7 @@ import edu.stanford.nlp.stats.ClassicCounter;
 import edu.stanford.nlp.stats.Counter;
 import edu.stanford.nlp.stats.Counters;
 import edu.stanford.nlp.util.Pair;
-import spinach.classify.Classifier;
+import spinach.classifier.PerceptronClassifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 import spinach.sentence.TokenSentenceAndPredicates;
@@ -13,28 +13,29 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-public class EasyFirstArgumentClassifier extends ArgumentClassifier{
+public class EasyFirstArgumentClassifier extends ArgumentClassifier {
 
-    public EasyFirstArgumentClassifier(Classifier classifier, ArgumentFeatureGenerator featureGenerator){
+    public EasyFirstArgumentClassifier(PerceptronClassifier classifier, ArgumentFeatureGenerator featureGenerator) {
         super(classifier, featureGenerator);
     }
 
-    public SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates){
+    @Override
+    public SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates) {
 
         SemanticFrameSet frameSet = new SemanticFrameSet(sentenceAndPredicates);
 
-        for (Token predicate : frameSet.getPredicateList()){
+        for (Token predicate : frameSet.getPredicateList()) {
             Map<Token, Counter<String>> argumentLabelScores =
                     new HashMap<Token, Counter<String>>();
 
             for (Token possibleArg :
-                    ArgumentClassifier.argumentCandidates(sentenceAndPredicates, predicate)){
+                    ArgumentClassifier.argumentCandidates(sentenceAndPredicates, predicate)) {
                 Counter<String> argClassScores = argClassScores(frameSet, possibleArg, predicate);
-                if(!Counters.argmax(argClassScores).equals("NIL"))
+                if (!Counters.argmax(argClassScores).equals("NIL"))
                     argumentLabelScores.put(possibleArg, argClassScores);
             }
 
-            while (!argumentLabelScores.isEmpty()){
+            while (!argumentLabelScores.isEmpty()) {
                 Pair<Token, String> argAndLabel = mostCertainArgLabel(argumentLabelScores);
                 Token registeredArg = argAndLabel.first();
                 String argLabel = argAndLabel.second();
@@ -42,27 +43,25 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier{
                 argumentLabelScores.remove(registeredArg);
                 frameSet.addArgument(predicate, registeredArg, argLabel);
 
-                if(!argLabel.equals("NIL") && !argLabel.equals("SU") && !argLabel.startsWith("AM-")){
+                if (!argLabel.equals(ArgumentClassifier.NIL_LABEL) && !argLabel.equals("SU") && !argLabel.startsWith("AM-")) {
 
                     Set<Token> restrictedTokens = frameSet.getDescendants(registeredArg);
                     restrictedTokens.addAll(frameSet.getAncestors(registeredArg));
 
-                    for (Token t : argumentLabelScores.keySet()){
-                        if (restrictedTokens.contains(t)){
+                    for (Token t : argumentLabelScores.keySet()) {
+                        if (restrictedTokens.contains(t)) {
                             Counter<String> tokenLabelScores = argumentLabelScores.get(t);
                             Counter<String> updatedScores = new ClassicCounter<String>();
 
-                            for (Map.Entry<String, Double> e : tokenLabelScores.entrySet()){
+                            for (Map.Entry<String, Double> e : tokenLabelScores.entrySet()) {
                                 String label = e.getKey();
-                                if (label.equals("NIL") || label.equals("SU") || label.startsWith("AM-"))
+                                if (label.equals(ArgumentClassifier.NIL_LABEL) || label.equals("SU") || label.startsWith("AM-"))
                                     updatedScores.setCount(label, e.getValue());
                             }
                         }
                     }
-                }
-
-                else if (argLabel.matches("A[0-9]"))
-                    for (Token token : argumentLabelScores.keySet()){
+                } else if (argLabel.matches("A[0-9]"))
+                    for (Token token : argumentLabelScores.keySet()) {
                         argumentLabelScores.get(token).remove(argLabel);
                     }
             }
@@ -72,14 +71,14 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier{
         return frameSet;
     }
 
-    private static Pair<Token, String> mostCertainArgLabel(Map<Token, Counter<String>> argumentLabelScores){
+    private static Pair<Token, String> mostCertainArgLabel(Map<Token, Counter<String>> argumentLabelScores) {
         Pair<Token, String> mostCertainArgLabel = null;
         double highCertainty = Double.NEGATIVE_INFINITY;
 
-        for (Map.Entry<Token, Counter<String>> token : argumentLabelScores.entrySet()){
+        for (Map.Entry<Token, Counter<String>> token : argumentLabelScores.entrySet()) {
             String label = Counters.argmax(token.getValue());
             double certainty = token.getValue().getCount(label);
-            if (certainty > highCertainty){
+            if (certainty > highCertainty) {
                 highCertainty = certainty;
                 mostCertainArgLabel = new Pair<Token, String>(token.getKey(), label);
             }

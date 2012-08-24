@@ -2,7 +2,7 @@ package spinach.predicateclassifier;
 
 import edu.stanford.nlp.classify.Dataset;
 import edu.stanford.nlp.ling.BasicDatum;
-import spinach.classify.Classifier;
+import spinach.classifier.PerceptronClassifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 import spinach.sentence.TokenSentence;
@@ -10,50 +10,84 @@ import spinach.sentence.TokenSentenceAndPredicates;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class PredicateClassifier {
 
-    protected final Classifier classifier;
+    protected final PerceptronClassifier classifier;
     protected final PredicateFeatureGenerator featureGenerator;
 
-    public PredicateClassifier(Classifier classifier, PredicateFeatureGenerator featureGenerator){
+    public final static String PREDICATE_LABEL = "predicate";
+    public final static String NOT_PREDICATE_LABEL = "not_predicate";
+
+    public PredicateClassifier(PerceptronClassifier classifier, PredicateFeatureGenerator featureGenerator) {
         this.classifier = classifier;
         this.featureGenerator = featureGenerator;
     }
 
-    protected TokenSentenceAndPredicates predicatesOf(TokenSentence sentence){
+    public TokenSentenceAndPredicates sentenceWithPredicates(TokenSentence sentence) {
         TokenSentenceAndPredicates sentenceAndPredicates = new TokenSentenceAndPredicates(sentence);
-        for (Token t : sentenceAndPredicates){
+        for (Token t : sentenceAndPredicates)
             if (classifier.classOf(featureGenerator.datumFrom(sentenceAndPredicates, t)).equals("predicate"))
                 sentenceAndPredicates.addPredicate(t);
-        }
 
         return sentenceAndPredicates;
     }
 
-    public Dataset<String, String> goldDataset(SemanticFrameSet goldFrames){
+    public Dataset<String, String> datasetFrom(SemanticFrameSet frameSet) {
         Dataset<String, String> dataset = new Dataset<String, String>();
-        HashSet<Token> predicates = new HashSet<Token>(goldFrames.getPredicateList());
-        for (Token t : goldFrames){
-            BasicDatum<String, String> datum = (BasicDatum<String, String>) featureGenerator.datumFrom(goldFrames, t);
+        Set<Token> predicates = new HashSet<Token>(frameSet.getPredicateList());
+        for (Token t : frameSet) {
+            BasicDatum<String, String> datum = (BasicDatum<String, String>) featureGenerator.datumFrom(frameSet, t);
             if (predicates.contains(t))
-                datum.setLabel("predicate");
+                datum.setLabel(PREDICATE_LABEL);
             else
-                datum.setLabel("not_predicate");
+                datum.setLabel(NOT_PREDICATE_LABEL);
             dataset.add(datum);
         }
 
         return dataset;
     }
 
-    public Dataset<String, String> goldDataset(List<SemanticFrameSet> goldFrameSet){
+    public Dataset<String, String> datasetFrom(List<SemanticFrameSet> frameSets) {
         Dataset<String, String> dataset = new Dataset<String, String>();
-        for (SemanticFrameSet frameSet : goldFrameSet)
-            dataset.addAll(goldDataset(frameSet));
+        for (SemanticFrameSet frameSet : frameSets)
+            dataset.addAll(datasetFrom(frameSet));
 
         dataset.applyFeatureCountThreshold(3);
 
         return dataset;
+    }
+
+    public void update(SemanticFrameSet predictedFrame, SemanticFrameSet goldFrame){
+        Dataset<String, String> dataset = new Dataset<String, String>();
+
+        for (Token t : goldFrame){
+
+            String goldLabel;
+            String predictedLabel;
+
+            if (goldFrame.isPredicate(t))
+                goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + PredicateClassifier.PREDICATE_LABEL;
+            else
+                goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + PredicateClassifier.NOT_PREDICATE_LABEL;
+
+            if (predictedFrame.isPredicate(t))
+                predictedLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + PredicateClassifier.PREDICATE_LABEL;
+            else
+                predictedLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + PredicateClassifier.NOT_PREDICATE_LABEL;
+
+            BasicDatum<String, String> datum = (BasicDatum<String, String>)
+                    featureGenerator.datumFrom(predictedFrame, t);
+
+            datum.addLabel(goldLabel);
+            datum.addLabel(predictedLabel);
+
+            dataset.add(datum);
+        }
+
+        classifier.manualTrain(dataset);
+
     }
 
 }

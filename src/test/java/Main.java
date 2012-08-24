@@ -3,21 +3,20 @@ import spinach.CorpusUtils;
 import spinach.argumentclassifier.ArgumentClassifier;
 import spinach.argumentclassifier.ArgumentFeatureGenerator;
 import spinach.argumentclassifier.EasyFirstArgumentClassifier;
-import spinach.classify.PerceptronClassifier;
+import spinach.classifier.PerceptronClassifier;
 import spinach.sentence.SemanticFrameSet;
 
 import java.util.List;
 
 public class Main {
-    public static void main(String[] args){
+    public static void main(String[] args) {
         List<SemanticFrameSet> frameSets = CorpusUtils.parseCorpus("src/test/resources/train.closed");
 
         PerceptronClassifier perceptronClassifier = new PerceptronClassifier();
         ArgumentFeatureGenerator argumentFeatureGenerator = new ArgumentFeatureGenerator();
         ArgumentClassifier argumentClassifier = new EasyFirstArgumentClassifier(perceptronClassifier, argumentFeatureGenerator);
 
-        Dataset<String, String> goldDataset = argumentClassifier.goldDataset(frameSets);
-
+        Dataset<String, String> goldDataset = argumentClassifier.datasetFrom(frameSets);
 
 
         perceptronClassifier.train(goldDataset);
@@ -27,7 +26,7 @@ public class Main {
 
         /*PredicateFeatureGenerator predicateFeatureGenerator = new PredicateFeatureGenerator();
         PredicateClassifier predicateClassifier = new PredicateClassifier(new PerceptronClassifier(), predicateFeatureGenerator);
-        for (Datum<String, String> d : predicateClassifier.goldDataset(frameSet)){
+        for (Datum<String, String> d : predicateClassifier.datasetFrom(frameSet)){
             System.out.println(d.label());
             System.out.println();
         }*/

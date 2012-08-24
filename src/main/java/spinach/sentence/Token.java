@@ -4,8 +4,6 @@ import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 
 /**
- * @author Calvin Huang
- *
  * Token in a sentence; stores information about itself
  * such as its form, lemma, part of speech.
  * Also stores syntactic relationship information, such as
@@ -14,8 +12,12 @@ import org.apache.commons.lang.builder.HashCodeBuilder;
  * In order to perform operations such as looking up children
  * and adjacent tokens quickly in a sentence, the index of this
  * token is kept in itself as well.
+ *
+ * @author Calvin Huang
  */
 public class Token {
+
+    public static final Token emptyToken = new Token("", "", "", "", -1, -1);
 
     public final String form;
     public final String lemma;
@@ -27,7 +29,7 @@ public class Token {
 
     public Token(String form, String lemma,
                  String pos, String semanticHeadRelation,
-                 int headSentenceIndex, int sentenceIndex){
+                 int headSentenceIndex, int sentenceIndex) {
 
         this.form = form;
         this.lemma = lemma;
@@ -37,7 +39,7 @@ public class Token {
         this.sentenceIndex = sentenceIndex;
     }
 
-    public boolean equals(Object o){
+    public boolean equals(Object o) {
         if (o == null)
             return false;
         if (o == this)
@@ -56,7 +58,7 @@ public class Token {
                 isEquals();
     }
 
-    public int hashCode(){
+    public int hashCode() {
         return new HashCodeBuilder(73, 23).
                 append(form).
                 append(lemma).
@@ -66,5 +68,4 @@ public class Token {
                 append(sentenceIndex).hashCode();
     }
 
-    public static Token emptyToken = new Token("", "", "", "", -1, -1);
 }
