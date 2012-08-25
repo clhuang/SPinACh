@@ -213,21 +213,6 @@ public class PerceptronClassifier implements Classifier, Serializable {
     }
 
     /**
-     * Trains a classifier on a dataset, keeping previous data
-     *
-     * @param dataset dataset to be trained on
-     */
-    public void trainIteration(Dataset<String, String> dataset) {
-
-        for (int i = 0; i < dataset.size(); i++) {
-            Datum<String, String> datum = dataset.getDatum(i);
-
-            train(datum);
-
-        }
-    }
-
-    /**
      * Trains the classifier based on a dataset with gold/predicted labels for each datum
      * For use with online learning
      *
@@ -246,56 +231,49 @@ public class PerceptronClassifier implements Classifier, Serializable {
      * Gold label is string: "goldLabel:[label]"
      */
     private void manualTrain(Datum<String, String> datum) {
-        Set<Integer> featureIndices = featuresOf(datum);
 
-        String predictedArg = null;
-        String goldArg = null;
+        String predictedLabel = null;
+        String goldLabel = null;
 
         for (String s : datum.labels()){
             if (s.startsWith(PREDICTED_LABEL_PREFIX))
-                predictedArg = s.substring(PREDICTED_LABEL_PREFIX.length());
+                predictedLabel = s.substring(PREDICTED_LABEL_PREFIX.length());
             else if (s.startsWith(GOLD_LABEL_PREFIX))
-                goldArg = s.substring(GOLD_LABEL_PREFIX.length());
+                goldLabel = s.substring(GOLD_LABEL_PREFIX.length());
         }
 
-        if (predictedArg == null || goldArg == null){
+        if (predictedLabel == null || goldLabel == null){
             throw new IllegalArgumentException("The datum provided did not contain the correct labels.");
         }
 
-        int predictedArgIndex = labelIndex.indexOf(predictedArg);
-        int goldArgIndex = labelIndex.indexOf(goldArg, true);
+        train(featuresOf(datum), goldLabel, predictedLabel);
+    }
+
+    private void train(Set<Integer> featureIndices, String goldLabel, String predictedLabel){
+
+        int predictedArgIndex = labelIndex.indexOf(predictedLabel);
+        int goldArgIndex = labelIndex.indexOf(goldLabel, true);
 
         if (goldArgIndex > zWeights.size())
             zWeights.add(new LabelWeights(featureIndex.size()));
 
-        if (!predictedArg.equals(goldArg)) {
+        if (!predictedLabel.equals(goldLabel)) {
             zWeights.get(predictedArgIndex).update(featureIndices, -1.0);
             zWeights.get(goldArgIndex).update(featureIndices, 1.0);
         }
 
         for (LabelWeights zw : zWeights)
             zw.incrementSurvivalIterations();
+
     }
 
     private void train(Datum<String, String> datum) {
         Set<Integer> exampleFeatureIndices = featuresOf(datum);
 
-        String predictedArg = argMaxDotProduct(exampleFeatureIndices);
-        String goldArg = datum.label();
+        String predictedLabel = argMaxDotProduct(exampleFeatureIndices);
+        String goldLabel = datum.label();
 
-        int predictedArgIndex = labelIndex.indexOf(predictedArg);
-        int goldArgIndex = labelIndex.indexOf(goldArg, true);
-
-        if (goldArgIndex > zWeights.size())
-            zWeights.add(new LabelWeights(featureIndex.size()));
-
-        if (!predictedArg.equals(goldArg)) {
-            zWeights.get(predictedArgIndex).update(exampleFeatureIndices, -1.0);
-            zWeights.get(goldArgIndex).update(exampleFeatureIndices, 1.0);
-        }
-
-        for (LabelWeights zw : zWeights)
-            zw.incrementSurvivalIterations();
+        train(exampleFeatureIndices, goldLabel, predictedLabel);
     }
 
     /*
