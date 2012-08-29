@@ -1,7 +1,7 @@
 import edu.stanford.nlp.classify.Dataset;
 import spinach.CorpusUtils;
 import spinach.argumentclassifier.ArgumentClassifier;
-import spinach.argumentclassifier.ArgumentFeatureGenerator;
+import spinach.argumentclassifier.featuregen.ArgumentFeatureGenerator;
 import spinach.argumentclassifier.EasyFirstArgumentClassifier;
 import spinach.classifier.PerceptronClassifier;
 import spinach.sentence.SemanticFrameSet;

@@ -4,6 +4,7 @@ import edu.stanford.nlp.stats.ClassicCounter;
 import edu.stanford.nlp.stats.Counter;
 import edu.stanford.nlp.stats.Counters;
 import edu.stanford.nlp.util.Pair;
+import spinach.argumentclassifier.featuregen.ArgumentFeatureGenerator;
 import spinach.classifier.PerceptronClassifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
@@ -21,6 +22,15 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier {
 
     @Override
     public SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates) {
+        return framesWithArguments(sentenceAndPredicates, false);
+    }
+
+    @Override
+    public SemanticFrameSet trainingFramesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates) {
+        return framesWithArguments(sentenceAndPredicates, true);
+    }
+
+    public SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates, boolean training) {
 
         SemanticFrameSet frameSet = new SemanticFrameSet(sentenceAndPredicates);
 
@@ -30,7 +40,12 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier {
 
             for (Token possibleArg :
                     ArgumentClassifier.argumentCandidates(sentenceAndPredicates, predicate)) {
-                Counter<String> argClassScores = argClassScores(frameSet, possibleArg, predicate);
+                Counter<String> argClassScores;
+                if (training)
+                    argClassScores = trainingArgClassScores(frameSet, possibleArg, predicate);
+                else
+                    argClassScores = argClassScores(frameSet, possibleArg, predicate);
+
                 if (!Counters.argmax(argClassScores).equals("NIL"))
                     argumentLabelScores.put(possibleArg, argClassScores);
             }

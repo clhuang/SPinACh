@@ -3,6 +3,7 @@ package spinach.argumentclassifier;
 import edu.stanford.nlp.classify.Dataset;
 import edu.stanford.nlp.ling.BasicDatum;
 import edu.stanford.nlp.stats.Counter;
+import spinach.argumentclassifier.featuregen.ArgumentFeatureGenerator;
 import spinach.classifier.PerceptronClassifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
@@ -24,6 +25,8 @@ public abstract class ArgumentClassifier {
     }
 
     public abstract SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates);
+
+    public abstract SemanticFrameSet trainingFramesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates);
 
     public static List<Token> argumentCandidates(TokenSentence sentence, Token predicate) {
         List<Token> argumentCandidates = new ArrayList<Token>();
@@ -49,6 +52,10 @@ public abstract class ArgumentClassifier {
 
     protected Counter<String> argClassScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate) {
         return classifier.scoresOf(featureGenerator.datumFrom(frameSet, possibleArg, predicate));
+    }
+
+    protected Counter<String> trainingArgClassScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate) {
+        return classifier.trainingScores(featureGenerator.datumFrom(frameSet, possibleArg, predicate));
     }
 
     protected static List<String> sortArgLabels(Counter<String> argCounter) {
@@ -100,13 +107,13 @@ public abstract class ArgumentClassifier {
     public void update(SemanticFrameSet predictedFrame, SemanticFrameSet goldFrame) {
         Dataset<String, String> dataset = new Dataset<String, String>();
 
-        for (Token predicate : goldFrame.getPredicateList()){
+        for (Token predicate : goldFrame.getPredicateList()) {
 
-            if (predictedFrame.isPredicate(predicate)){
+            if (predictedFrame.isPredicate(predicate)) {
                 Map<Token, String> goldArguments = goldFrame.argumentsOf(predicate);
                 Map<Token, String> predictedArguments = predictedFrame.argumentsOf(predicate);
 
-                for (Token t : argumentCandidates(predictedFrame, predicate)){
+                for (Token t : argumentCandidates(predictedFrame, predicate)) {
                     String goldLabel = goldArguments.get(t);
                     String predictedLabel = predictedArguments.get(t);
 
@@ -137,5 +144,9 @@ public abstract class ArgumentClassifier {
 
         classifier.manualTrain(dataset);
 
+    }
+
+    public ArgumentFeatureGenerator getFeatureGenerator() {
+        return featureGenerator;
     }
 }

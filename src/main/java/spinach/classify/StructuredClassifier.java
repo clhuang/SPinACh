@@ -29,12 +29,29 @@ public class StructuredClassifier implements GEN {
         this(argumentClassifier, predicateClassifier, 10);
     }
 
+    public ArgumentClassifier getArgumentClassifier() {
+        return argumentClassifier;
+    }
+
+    public PredicateClassifier getPredicateClassifier() {
+        return predicateClassifier;
+    }
+
     public SemanticFrameSet parse(TokenSentence sentence) {
 
         TokenSentenceAndPredicates sentenceAndPredicates =
                 predicateClassifier.sentenceWithPredicates(sentence);
 
         return argumentClassifier.framesWithArguments(sentenceAndPredicates);
+
+    }
+
+    private SemanticFrameSet trainingParse(TokenSentence sentence) {
+
+        TokenSentenceAndPredicates sentenceAndPredicates =
+                predicateClassifier.trainingSentenceWithPredicates(sentence);
+
+        return argumentClassifier.trainingFramesWithArguments(sentenceAndPredicates);
 
     }
 
@@ -54,7 +71,7 @@ public class StructuredClassifier implements GEN {
     private void train(SemanticFrameSet goldFrame) {
 
         //when this is run, parse ignores the predicates and semantic data
-        SemanticFrameSet predictedFrame = parse(goldFrame);
+        SemanticFrameSet predictedFrame = trainingParse(goldFrame);
 
         predictedFrame.trimPredicates();
 

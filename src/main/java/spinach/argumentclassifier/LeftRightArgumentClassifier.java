@@ -1,6 +1,7 @@
 package spinach.argumentclassifier;
 
 import edu.stanford.nlp.stats.Counter;
+import spinach.argumentclassifier.featuregen.ArgumentFeatureGenerator;
 import spinach.classifier.PerceptronClassifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
@@ -17,6 +18,16 @@ public class LeftRightArgumentClassifier extends ArgumentClassifier {
 
     @Override
     public SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates) {
+        return framesWithArguments(sentenceAndPredicates, false);
+    }
+
+    @Override
+    public SemanticFrameSet trainingFramesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates) {
+        return framesWithArguments(sentenceAndPredicates, true);
+    }
+
+
+    private SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates, boolean training) {
         SemanticFrameSet frameSet = new SemanticFrameSet(sentenceAndPredicates);
         frameSet.addPredicates(sentenceAndPredicates.getPredicateList());
 
@@ -28,7 +39,11 @@ public class LeftRightArgumentClassifier extends ArgumentClassifier {
             nextArgument:
             for (Token argument : argumentCandidates(frameSet, predicate)) {
 
-                Counter<String> argClassScores = argClassScores(frameSet, argument, predicate);
+                Counter<String> argClassScores;
+                if (training)
+                    argClassScores = trainingArgClassScores(frameSet, argument, predicate);
+                else
+                    argClassScores = argClassScores(frameSet, argument, predicate);
 
                 for (String label : sortArgLabels(argClassScores)) {
                     if (label.equals(ArgumentClassifier.NIL_LABEL)) {

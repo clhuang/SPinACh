@@ -1,6 +1,7 @@
 package spinach.sentence;
 
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableSet;
 
 import java.util.*;
 
@@ -188,5 +189,56 @@ public class TokenSentence implements Iterable<Token> {
      */
     public Iterator<Token> iterator() {
         return sentenceTokens.iterator();
+    }
+
+    public String voiceOf(Token t) {
+        if (!t.pos.startsWith("VB"))
+            return "notVerb";
+
+        int verbContextRightBoundary = t.sentenceIndex - 1;
+        int verbContextLeftBoundary = verbContextRightBoundary;
+
+        while (verbContextLeftBoundary >= 0 && !tokenAt(verbContextLeftBoundary).pos.equals("CC"))
+            verbContextLeftBoundary--;
+        verbContextLeftBoundary--;
+
+        Token verbModifier = null;
+
+        for (int i = verbContextRightBoundary; i >= verbContextLeftBoundary; i--)
+            if (i >= 0) {
+                String pos = tokenAt(i).pos;
+                if (pos.startsWith("TO") || pos.startsWith("MD") || pos.startsWith("VB") || pos.startsWith("AUX")) {
+                    verbModifier = tokenAt(i);
+                    break;
+                }
+            }
+
+        if (t.pos.equals("VBG") && verbModifier == null)
+            return "gerund";
+        if (t.pos.equals("VB") && verbModifier != null && verbModifier.pos.equals("TO"))
+            return "infinitive";
+        if (isBeVerb(t))
+            return "copulative";
+        if (t.pos.equals("VBN") || t.pos.equals("VBD")
+                && verbModifier != null &&
+                (isBeVerb(verbModifier) || isGetVerb(verbModifier)))
+            return "passive";
+        return "active";
+    }
+
+    static Set<String> beVerbForms = new ImmutableSet.Builder<String>().add(
+            "be", "am", "is", "was", "are", "were", "been", "being"
+    ).build();
+
+    static Set<String> getVerbForms = new ImmutableSet.Builder<String>().add(
+            "get", "got", "gotten", "getting", "geting", "gets"
+    ).build();
+
+    private static boolean isBeVerb(Token t) {
+        return beVerbForms.contains(t.form.toLowerCase());
+    }
+
+    private static boolean isGetVerb(Token t) {
+        return getVerbForms.contains(t.form.toLowerCase());
     }
 }

@@ -218,9 +218,9 @@ public class PerceptronClassifier implements Classifier, Serializable {
      *
      * @param goldAndPredictedDataset dataset w/ two labels: a gold label, and a predicted label
      */
-    public void manualTrain(Dataset<String, String> goldAndPredictedDataset){
+    public void manualTrain(Dataset<String, String> goldAndPredictedDataset) {
 
-        for (Datum<String, String> d : goldAndPredictedDataset){
+        for (Datum<String, String> d : goldAndPredictedDataset) {
             manualTrain(d);
         }
     }
@@ -235,21 +235,21 @@ public class PerceptronClassifier implements Classifier, Serializable {
         String predictedLabel = null;
         String goldLabel = null;
 
-        for (String s : datum.labels()){
+        for (String s : datum.labels()) {
             if (s.startsWith(PREDICTED_LABEL_PREFIX))
                 predictedLabel = s.substring(PREDICTED_LABEL_PREFIX.length());
             else if (s.startsWith(GOLD_LABEL_PREFIX))
                 goldLabel = s.substring(GOLD_LABEL_PREFIX.length());
         }
 
-        if (predictedLabel == null || goldLabel == null){
+        if (predictedLabel == null || goldLabel == null) {
             throw new IllegalArgumentException("The datum provided did not contain the correct labels.");
         }
 
         train(featuresOf(datum), goldLabel, predictedLabel);
     }
 
-    private void train(Set<Integer> featureIndices, String goldLabel, String predictedLabel){
+    private void train(Set<Integer> featureIndices, String goldLabel, String predictedLabel) {
 
         int predictedArgIndex = labelIndex.indexOf(predictedLabel);
         int goldArgIndex = labelIndex.indexOf(goldLabel, true);
@@ -334,6 +334,16 @@ public class PerceptronClassifier implements Classifier, Serializable {
         return scores;
     }
 
+    public Counter<String> trainingScores(Datum<String, String> datum) {
+        Counter<String> scores = new ClassicCounter<String>();
+        Set<Integer> featureCounts = featuresOf(datum);
+        for (int i = 0; i < labelIndex.size(); i++) {
+            scores.incrementCount(labelIndex.get(i),
+                    LabelWeights.dotProduct(featureCounts, zWeights.get(i).weights));
+        }
+        return scores;
+    }
+
     /**
      * Gives the label that is most likely to represent some datum
      *
@@ -342,6 +352,10 @@ public class PerceptronClassifier implements Classifier, Serializable {
      */
     public String classOf(Datum<String, String> datum) {
         return argMaxAverageDotProduct(featuresOf(datum));
+    }
+
+    public String trainingClassOf(Datum<String, String> datum) {
+        return argMaxDotProduct(featuresOf(datum));
     }
 
 }

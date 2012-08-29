@@ -26,10 +26,24 @@ public class PredicateClassifier {
     }
 
     public TokenSentenceAndPredicates sentenceWithPredicates(TokenSentence sentence) {
+        return sentenceWithPredicates(sentence, false);
+    }
+
+    public TokenSentenceAndPredicates trainingSentenceWithPredicates(TokenSentence sentence) {
+        return sentenceWithPredicates(sentence, true);
+    }
+
+    public TokenSentenceAndPredicates sentenceWithPredicates(TokenSentence sentence, boolean training) {
         TokenSentenceAndPredicates sentenceAndPredicates = new TokenSentenceAndPredicates(sentence);
-        for (Token t : sentenceAndPredicates)
-            if (classifier.classOf(featureGenerator.datumFrom(sentenceAndPredicates, t)).equals("predicate"))
+        for (Token t : sentenceAndPredicates) {
+            String predicateClass;
+            if (training)
+                predicateClass = classifier.trainingClassOf(featureGenerator.datumFrom(sentenceAndPredicates, t));
+            else
+                predicateClass = classifier.classOf(featureGenerator.datumFrom(sentenceAndPredicates, t));
+            if (predicateClass.equals(PREDICATE_LABEL))
                 sentenceAndPredicates.addPredicate(t);
+        }
 
         return sentenceAndPredicates;
     }
@@ -59,10 +73,10 @@ public class PredicateClassifier {
         return dataset;
     }
 
-    public void update(SemanticFrameSet predictedFrame, SemanticFrameSet goldFrame){
+    public void update(SemanticFrameSet predictedFrame, SemanticFrameSet goldFrame) {
         Dataset<String, String> dataset = new Dataset<String, String>();
 
-        for (Token t : goldFrame){
+        for (Token t : goldFrame) {
 
             String goldLabel;
             String predictedLabel;
