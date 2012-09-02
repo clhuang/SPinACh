@@ -156,9 +156,9 @@ public abstract class ArgumentClassifier {
                     String predictedLabel = predictedArguments.get(t);
 
                     if (goldLabel == null || goldLabel.equals(ArgumentClassifier.NIL_LABEL))
-                        goldLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + ArgumentClassifier.NIL_LABEL;
+                        goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + ArgumentClassifier.NIL_LABEL;
                     else
-                        goldLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + goldLabel;
+                        goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + goldLabel;
 
                     if (predictedLabel == null || predictedLabel.equals(ArgumentClassifier.NIL_LABEL))
                         predictedLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + ArgumentClassifier.NIL_LABEL;
