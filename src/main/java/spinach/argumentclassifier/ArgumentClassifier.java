@@ -4,6 +4,7 @@ import edu.stanford.nlp.classify.Dataset;
 import edu.stanford.nlp.ling.BasicDatum;
 import edu.stanford.nlp.stats.Counter;
 import spinach.argumentclassifier.featuregen.ArgumentFeatureGenerator;
+import spinach.argumentclassifier.featuregen.ExtensibleOnlineFeatureGenerator;
 import spinach.classifier.PerceptronClassifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
@@ -12,6 +13,13 @@ import spinach.sentence.TokenSentenceAndPredicates;
 
 import java.util.*;
 
+/**
+ * ArgumentClassifiers, given a sentence and a set of predicates,
+ * identify the arguments of each predicate in that sentence
+ * and the semantic relation between each predicate and argument.
+ *
+ * @author Calvin Huang
+ */
 public abstract class ArgumentClassifier {
 
     protected final PerceptronClassifier classifier;
@@ -19,6 +27,12 @@ public abstract class ArgumentClassifier {
 
     public final static String NIL_LABEL = "NIL";
 
+    /**
+     * Constructs an ArgumentClassifier with a perceptron and a feature generator
+     *
+     * @param classifier       a Perceptron classifier that this ArgumentClassifier is based upon
+     * @param featureGenerator that generates features for each input
+     */
     public ArgumentClassifier(PerceptronClassifier classifier, ArgumentFeatureGenerator featureGenerator) {
         this.classifier = classifier;
         this.featureGenerator = featureGenerator;
@@ -28,6 +42,13 @@ public abstract class ArgumentClassifier {
 
     public abstract SemanticFrameSet trainingFramesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates);
 
+    /**
+     * Returns all the possible argument candidates for a given sentence and predicate
+     *
+     * @param sentence  sentence to analyze
+     * @param predicate predicate to find argument candidates of
+     * @return list of possible argument candidates, in order
+     */
     public static List<Token> argumentCandidates(TokenSentence sentence, Token predicate) {
         List<Token> argumentCandidates = new ArrayList<Token>();
         Token currentHead = predicate;
@@ -54,7 +75,7 @@ public abstract class ArgumentClassifier {
         return classifier.scoresOf(featureGenerator.datumFrom(frameSet, possibleArg, predicate));
     }
 
-    protected Counter<String> trainingArgClassScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate) {
+    private Counter<String> trainingArgClassScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate) {
         return classifier.trainingScores(featureGenerator.datumFrom(frameSet, possibleArg, predicate));
     }
 
@@ -72,6 +93,12 @@ public abstract class ArgumentClassifier {
         return sortedLabels;
     }
 
+    /**
+     * Generates a dataset (to be used in training) for a given frameset
+     *
+     * @param frameSet frameset to analyze
+     * @return Dataset with features generated from the frameset
+     */
     public Dataset<String, String> datasetFrom(SemanticFrameSet frameSet) {
         Dataset<String, String> dataset = new Dataset<String, String>();
         for (Token predicate : frameSet.getPredicateList()) {
@@ -93,6 +120,12 @@ public abstract class ArgumentClassifier {
         return dataset;
     }
 
+    /**
+     * Generates a dataset (to be used in training) from a bunch of frameSets
+     *
+     * @param frameSets Collection of framesets to generate a dataset
+     * @return Dataset with features generated from the collection of frames
+     */
     public Dataset<String, String> datasetFrom(Collection<SemanticFrameSet> frameSets) {
         Dataset<String, String> dataset = new Dataset<String, String>();
         for (SemanticFrameSet frameSet : frameSets)
@@ -103,7 +136,12 @@ public abstract class ArgumentClassifier {
         return dataset;
     }
 
-
+    /**
+     * Update the prediction model based on a known gold frame, and a predicted frame
+     *
+     * @param predictedFrame frame predicted by this model
+     * @param goldFrame      known labels for sentence
+     */
     public void update(SemanticFrameSet predictedFrame, SemanticFrameSet goldFrame) {
         Dataset<String, String> dataset = new Dataset<String, String>();
 
@@ -148,5 +186,14 @@ public abstract class ArgumentClassifier {
 
     public ArgumentFeatureGenerator getFeatureGenerator() {
         return featureGenerator;
+    }
+
+    /**
+     * Tells if the feature generator for this argument classifier can be trained
+     *
+     * @return whether or not feature generator can be trained
+     */
+    public boolean isFeatureTrainable() {
+        return featureGenerator instanceof ExtensibleOnlineFeatureGenerator;
     }
 }

@@ -1,6 +1,7 @@
 package spinach.classify;
 
 import spinach.argumentclassifier.ArgumentClassifier;
+import spinach.argumentclassifier.featuregen.ExtensibleOnlineFeatureGenerator;
 import spinach.predicateclassifier.PredicateClassifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.TokenSentence;
@@ -27,14 +28,6 @@ public class StructuredClassifier implements GEN {
     public StructuredClassifier(ArgumentClassifier argumentClassifier,
                                 PredicateClassifier predicateClassifier) {
         this(argumentClassifier, predicateClassifier, 10);
-    }
-
-    public ArgumentClassifier getArgumentClassifier() {
-        return argumentClassifier;
-    }
-
-    public PredicateClassifier getPredicateClassifier() {
-        return predicateClassifier;
     }
 
     public SemanticFrameSet parse(TokenSentence sentence) {
@@ -77,6 +70,36 @@ public class StructuredClassifier implements GEN {
 
         predicateClassifier.update(predictedFrame, goldFrame);
         argumentClassifier.update(predictedFrame, goldFrame);
+    }
+
+    public void trainArgumentFeatureGenerator(List<SemanticFrameSet> goldFrames) {
+        double previousF1;
+
+        ExtensibleOnlineFeatureGenerator featureGenerator;
+        if (argumentClassifier.isFeatureTrainable())
+            featureGenerator = (ExtensibleOnlineFeatureGenerator) argumentClassifier.getFeatureGenerator();
+        else {
+            System.err.println("Cannot train feature generator--is not a trainable feature generator");
+            return;
+        }
+        featureGenerator.clearFeatures();
+
+        train(goldFrames);
+        previousF1 = (new Metric(this, goldFrames)).argumentF1s().getCount(Metric.TOTAL);
+
+        for (int i = 0; i < featureGenerator.numFeatureTypes(); i++) {
+            featureGenerator.addFeatureType(i);
+            train(goldFrames);
+
+            Metric metric = new Metric(this, goldFrames);
+            double F1 = metric.argumentF1s().getCount(Metric.TOTAL);
+
+            if (F1 > previousF1)
+                previousF1 = F1;
+            else
+                featureGenerator.removeFeatureType(i);
+
+        }
     }
 
 }
