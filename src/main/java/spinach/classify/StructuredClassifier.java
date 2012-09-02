@@ -88,7 +88,7 @@ public class StructuredClassifier implements GEN {
         previousF1 = (new Metric(this, goldFrames)).argumentF1s().getCount(Metric.TOTAL);
 
         for (int i = 0; i < featureGenerator.numFeatureTypes(); i++) {
-            featureGenerator.addFeatureType(i);
+            featureGenerator.enableFeatureType(i);
             train(goldFrames);
 
             Metric metric = new Metric(this, goldFrames);
@@ -97,7 +97,7 @@ public class StructuredClassifier implements GEN {
             if (F1 > previousF1)
                 previousF1 = F1;
             else
-                featureGenerator.removeFeatureType(i);
+                featureGenerator.disableFeatureType(i);
 
         }
     }

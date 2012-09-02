@@ -155,13 +155,13 @@ public abstract class ArgumentClassifier {
                     String goldLabel = goldArguments.get(t);
                     String predictedLabel = predictedArguments.get(t);
 
-                    if (goldLabel == null || goldLabel.equals(ArgumentClassifier.NIL_LABEL))
-                        goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + ArgumentClassifier.NIL_LABEL;
+                    if (goldLabel == null || goldLabel.equals(NIL_LABEL))
+                        goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + NIL_LABEL;
                     else
                         goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + goldLabel;
 
-                    if (predictedLabel == null || predictedLabel.equals(ArgumentClassifier.NIL_LABEL))
-                        predictedLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + ArgumentClassifier.NIL_LABEL;
+                    if (predictedLabel == null || predictedLabel.equals(NIL_LABEL))
+                        predictedLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + NIL_LABEL;
                     else
                         predictedLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + predictedLabel;
 
@@ -175,9 +175,27 @@ public abstract class ArgumentClassifier {
 
                 }
 
-            }
+            } else {
+                Map<Token, String> goldArguments = goldFrame.argumentsOf(predicate);
 
-            //TODO: what if token is predicate in one but not other
+                for (Token t : argumentCandidates(predictedFrame, predicate)) {
+                    String goldLabel = goldArguments.get(t);
+                    String predictedLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + NIL_LABEL;
+
+                    if (goldLabel == null || goldLabel.equals(NIL_LABEL))
+                        goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + NIL_LABEL;
+                    else
+                        goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + goldLabel;
+
+                    BasicDatum<String, String> datum =
+                            (BasicDatum<String, String>) featureGenerator.datumFrom(predictedFrame, t, predicate);
+
+                    datum.addLabel(goldLabel);
+                    datum.addLabel(predictedLabel);
+
+                    dataset.add(datum);
+                }
+            }
         }
 
         classifier.manualTrain(dataset);

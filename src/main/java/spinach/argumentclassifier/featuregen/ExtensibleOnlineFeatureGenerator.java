@@ -59,11 +59,11 @@ public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
 
     }
 
-    public boolean addFeatureType(int featureNum) {
+    public boolean enableFeatureType(int featureNum) {
         return featureTypes.add(featureNum);
     }
 
-    public boolean removeFeatureType(int featureNum) {
+    public boolean disableFeatureType(int featureNum) {
         return featureTypes.remove(featureNum);
     }
 
