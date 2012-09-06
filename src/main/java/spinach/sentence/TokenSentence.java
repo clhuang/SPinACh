@@ -6,15 +6,14 @@ import com.google.common.collect.ImmutableSet;
 import java.util.*;
 
 /**
+ * List of tokens that keeps track of syntactic dependencies between tokens.
+ * Allows for fast computation of multiple token-related features
+ * such as children/descendants of some token.
+ * <p/>
+ * Any methods in this class that return tokens must be called with tokens
+ * that are in this sentence, otherwise undesirable behavior will occur.
+ *
  * @author Calvin Huang
- *         <p/>
- *         List of tokens that keeps track of each token's child.
- *         Allows for fast computation of multiple token-related features
- *         such as children/descendants of some token.
- *         <p/>
- *         Any methods in this class that return tokens must be called
- *         with tokens that are already part of this sentence, otherwise
- *         undesireable behavior may occur.
  */
 public class TokenSentence implements Iterable<Token> {
 
@@ -98,16 +97,28 @@ public class TokenSentence implements Iterable<Token> {
         return ancestors;
     }
 
-    public List<Token> getSiblings(Token t) {
-        List<Token> siblings = new ArrayList<Token>();
+    /**
+     * Get the siblings (children of parent) of some token
+     *
+     * @param t token to analyze
+     * @return deque of siblings in order
+     */
+    public Deque<Token> getSiblings(Token t) {
+        Deque<Token> siblings = new ArrayDeque<Token>();
         Token parent = getParent(t);
         if (parent == null)
             return siblings;
-        siblings = getChildren(parent);
+        siblings.addAll(getChildren(parent));
         siblings.remove(t);
         return siblings;
     }
 
+    /**
+     * Get the siblings that appear before some token
+     *
+     * @param t token to analyze
+     * @return deque of preceding siblings in order
+     */
     public Deque<Token> getLeftSiblings(Token t) {
         Deque<Token> leftSiblings = new ArrayDeque<Token>();
         for (Token sibling : getSiblings(t))
@@ -117,6 +128,12 @@ public class TokenSentence implements Iterable<Token> {
         return leftSiblings;
     }
 
+    /**
+     * get the siblings that appear after some token
+     *
+     * @param t token to analyze
+     * @return deque of succeeding siblings in order
+     */
     public Deque<Token> getRightSiblings(Token t) {
         Deque<Token> rightSiblings = new ArrayDeque<Token>();
         for (Token sibling : getSiblings(t))
@@ -191,6 +208,12 @@ public class TokenSentence implements Iterable<Token> {
         return sentenceTokens.iterator();
     }
 
+    /**
+     * Returns the voice of a particular word (active, passive, etc.)
+     *
+     * @param t token to be analyzed
+     * @return the voice of the word
+     */
     public String voiceOf(Token t) {
         if (!t.pos.startsWith("VB"))
             return "notVerb";
@@ -226,11 +249,11 @@ public class TokenSentence implements Iterable<Token> {
         return "active";
     }
 
-    static Set<String> beVerbForms = new ImmutableSet.Builder<String>().add(
+    private static Set<String> beVerbForms = new ImmutableSet.Builder<String>().add(
             "be", "am", "is", "was", "are", "were", "been", "being"
     ).build();
 
-    static Set<String> getVerbForms = new ImmutableSet.Builder<String>().add(
+    private static Set<String> getVerbForms = new ImmutableSet.Builder<String>().add(
             "get", "got", "gotten", "getting", "geting", "gets"
     ).build();
 

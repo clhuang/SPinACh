@@ -4,6 +4,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * A class that, in addition to containing a sentence
+ * and its syntactic relations, also contains a list of
+ * predicates in that sentence.
+ *
+ * @author Calvin Huang
+ */
 public class TokenSentenceAndPredicates extends TokenSentence {
     protected List<Token> predicateList = new ArrayList<Token>();
 
@@ -49,7 +56,7 @@ public class TokenSentenceAndPredicates extends TokenSentence {
      * @param t token in question
      * @return if t is a predicate
      */
-    public boolean isPredicate(Token t){
+    public boolean isPredicate(Token t) {
         return predicateList.contains(t);
     }
 }

@@ -319,10 +319,10 @@ public class PerceptronClassifier implements Classifier, Serializable {
     }
 
     /**
-     * Returns the scores for each label, of some datum
+     * Returns the scores for each label of some datum
      *
      * @param datum datum to be examined
-     * @return {@link edu.stanford.nlp.stats.Counter Counter} with scores of each label
+     * @return Counter with scores of each label
      */
     public Counter<String> scoresOf(Datum<String, String> datum) {
         Counter<String> scores = new ClassicCounter<String>();
@@ -334,6 +334,12 @@ public class PerceptronClassifier implements Classifier, Serializable {
         return scores;
     }
 
+    /**
+     * Returns training scores for each label of some datum
+     *
+     * @param datum datum to be examined
+     * @return Counter with scores of each label
+     */
     public Counter<String> trainingScores(Datum<String, String> datum) {
         Counter<String> scores = new ClassicCounter<String>();
         Set<Integer> featureCounts = featuresOf(datum);
@@ -354,6 +360,13 @@ public class PerceptronClassifier implements Classifier, Serializable {
         return argMaxAverageDotProduct(featuresOf(datum));
     }
 
+    /**
+     * Gives the label that is most likely to represent some datum,
+     * according to training weights
+     *
+     * @param datum datum to be examined
+     * @return label with highest score
+     */
     public String trainingClassOf(Datum<String, String> datum) {
         return argMaxDotProduct(featuresOf(datum));
     }

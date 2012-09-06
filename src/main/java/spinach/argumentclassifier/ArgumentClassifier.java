@@ -38,8 +38,21 @@ public abstract class ArgumentClassifier {
         this.featureGenerator = featureGenerator;
     }
 
+    /**
+     * Constructs a SemanticFrameSet from a sentence with predicates
+     *
+     * @param sentenceAndPredicates sentence with predicates
+     * @return initial sentence with predicates with added arguments
+     */
     public abstract SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates);
 
+    /**
+     * Constructs a SemanticFrameSet from a sentence with predicates with training weights
+     * For use in training only
+     *
+     * @param sentenceAndPredicates sentence with predicates
+     * @return initial sentence with predicates with added arguments
+     */
     public abstract SemanticFrameSet trainingFramesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates);
 
     /**
@@ -71,11 +84,28 @@ public abstract class ArgumentClassifier {
         return argumentCandidates;
     }
 
-    protected Counter<String> argClassScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate) {
+    /**
+     * Gives the scores for each argument label, given a sentence, predicate, and argument candidate
+     *
+     * @param frameSet    sentence to be analyzed
+     * @param possibleArg possible argument of that sentence
+     * @param predicate   predicate in that sentence
+     * @return scores of the possible labels of that predicate-argument pair
+     */
+    public Counter<String> argClassScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate) {
         return classifier.scoresOf(featureGenerator.datumFrom(frameSet, possibleArg, predicate));
     }
 
-    private Counter<String> trainingArgClassScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate) {
+    /**
+     * Gives the scores for each argument label, given a sentence, predicate, and argument candidate
+     * based on training weights
+     *
+     * @param frameSet    sentence to be analyzed
+     * @param possibleArg possible argument of that sentence
+     * @param predicate   predicate in that sentence
+     * @return scores of the possible labels of that predicate-argument pair
+     */
+    public Counter<String> trainingArgClassScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate) {
         return classifier.trainingScores(featureGenerator.datumFrom(frameSet, possibleArg, predicate));
     }
 
@@ -202,6 +232,11 @@ public abstract class ArgumentClassifier {
 
     }
 
+    /**
+     * Get the feature generator for this argument classifier
+     *
+     * @return this classifier's feature generator
+     */
     public ArgumentFeatureGenerator getFeatureGenerator() {
         return featureGenerator;
     }

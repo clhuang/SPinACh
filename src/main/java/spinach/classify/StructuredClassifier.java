@@ -7,17 +7,30 @@ import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.TokenSentence;
 import spinach.sentence.TokenSentenceAndPredicates;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
+/**
+ * A class that does the entire task for a sentence--
+ * determines the predicates and the arguments of said sentence
+ *
+ * @author Calvin Huang
+ */
 public class StructuredClassifier implements GEN {
 
     private final ArgumentClassifier argumentClassifier;
     private final PredicateClassifier predicateClassifier;
     private final int epochs;
 
+    private final double FEATURE_INCREMENT_THRESHOLD = 0.01;
+
+    /**
+     * Generates a structured classifier with a certain argument classifier, predicate classifier,
+     * and a certain number of epochs
+     *
+     * @param argumentClassifier  ArgumentClassifier to use
+     * @param predicateClassifier PredicateClassifier to use
+     * @param epochs              number of times to iterate through training datasets
+     */
     public StructuredClassifier(ArgumentClassifier argumentClassifier,
                                 PredicateClassifier predicateClassifier, int epochs) {
         this.argumentClassifier = argumentClassifier;
@@ -25,11 +38,24 @@ public class StructuredClassifier implements GEN {
         this.epochs = epochs;
     }
 
+    /**
+     * Generates a structured classifier with a certain argument classifier, predicate classifier,
+     * and runs 10 epochs during training
+     *
+     * @param argumentClassifier  ArgumentClassifier to use
+     * @param predicateClassifier PredicateClassifier to use
+     */
     public StructuredClassifier(ArgumentClassifier argumentClassifier,
                                 PredicateClassifier predicateClassifier) {
         this(argumentClassifier, predicateClassifier, 10);
     }
 
+    /**
+     * Given a sentence, determines the predicates and arguments for that sentence
+     *
+     * @param sentence sentence to analyze
+     * @return SemanticFrameSet with the original sentence, along with predicates and arguments
+     */
     public SemanticFrameSet parse(TokenSentence sentence) {
 
         TokenSentenceAndPredicates sentenceAndPredicates =
@@ -48,7 +74,12 @@ public class StructuredClassifier implements GEN {
 
     }
 
-    public void train(List<SemanticFrameSet> goldFrames) {
+    /**
+     * Trains this structured classifier on a collection of known SemanticFrameSets
+     *
+     * @param goldFrames SemanticFrameSets with known good semantic data
+     */
+    public void train(Collection<SemanticFrameSet> goldFrames) {
 
         for (int i = 0; i < epochs; i++) {
 
@@ -72,8 +103,15 @@ public class StructuredClassifier implements GEN {
         argumentClassifier.update(predictedFrame, goldFrame);
     }
 
+    /**
+     * Trains the argument feature generator for this object's ArgumentClassifier--
+     * enables features that increase the F1 of the structured classifier
+     *
+     * @param goldFrames SemanticFrameSets with known good semantic data
+     */
     public void trainArgumentFeatureGenerator(List<SemanticFrameSet> goldFrames) {
         double previousF1;
+        Metric metric;
 
         ExtensibleOnlineFeatureGenerator featureGenerator;
         if (argumentClassifier.isFeatureTrainable())
@@ -85,16 +123,17 @@ public class StructuredClassifier implements GEN {
         featureGenerator.clearFeatures();
 
         train(goldFrames);
-        previousF1 = (new Metric(this, goldFrames)).argumentF1s().getCount(Metric.TOTAL);
+        metric = new Metric(this, goldFrames);
+        previousF1 = metric.argumentF1s().getCount(Metric.TOTAL);
 
         for (int i = 0; i < featureGenerator.numFeatureTypes(); i++) {
             featureGenerator.enableFeatureType(i);
             train(goldFrames);
 
-            Metric metric = new Metric(this, goldFrames);
+            metric.recalculateScores();
             double F1 = metric.argumentF1s().getCount(Metric.TOTAL);
 
-            if (F1 > previousF1)
+            if (F1 > previousF1 + FEATURE_INCREMENT_THRESHOLD)
                 previousF1 = F1;
             else
                 featureGenerator.disableFeatureType(i);

@@ -10,24 +10,38 @@ import java.util.*;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+/**
+ * This feature generator, in addition to the argument feature generator,
+ * enables addition of user-defined custom features
+ *
+ * @author Calvin Huang
+ */
 public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
 
     private Set<Integer> featureTypes;
     private List<IndividualFeatureGenerator> featureGeneratorList =
             new ArrayList<IndividualFeatureGenerator>();
 
+    /**
+     * Generates a new feature generator, with no enabled features
+     */
     public ExtensibleOnlineFeatureGenerator() {
         this(new HashSet<Integer>());
     }
 
+    /**
+     * Generates a new feature generator
+     *
+     * @param featureNums indices of extra features
+     */
     public ExtensibleOnlineFeatureGenerator(Set<Integer> featureNums) {
         featureTypes = featureNums;
         addDefaultFeatures();
     }
 
     @Override
-    public Collection<String> featuresOf(SemanticFrameSet sentenceAndPredicates,
-                                         Token argument, Token predicate) {
+    protected Collection<String> featuresOf(SemanticFrameSet sentenceAndPredicates,
+                                            Token argument, Token predicate) {
 
         Collection<String> features = super.featuresOf(sentenceAndPredicates, argument, predicate);
         List<Token> featureTokens = new ArrayList<Token>();
@@ -59,10 +73,22 @@ public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
 
     }
 
+    /**
+     * Enables a certain feature by feature number
+     *
+     * @param featureNum index of feature in list of features
+     * @return whether or not feature was actually added (may have already been present)
+     */
     public boolean enableFeatureType(int featureNum) {
         return featureTypes.add(featureNum);
     }
 
+    /**
+     * Disables a certain feature by feature number
+     *
+     * @param featureNum index of feature in list of features
+     * @return whether or not feature was actually added (may not have been present)
+     */
     public boolean disableFeatureType(int featureNum) {
         return featureTypes.remove(featureNum);
     }
@@ -71,18 +97,36 @@ public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
         return featureGeneratorList.size();
     }
 
+    /**
+     * Gives the number of enabled additional features
+     *
+     * @return number of enabled extra features
+     */
     public int numAddlFeatures() {
         return featureTypes.size();
     }
 
+    /**
+     * Disables all extra features
+     */
     public void clearFeatures() {
         featureTypes.clear();
     }
 
+    /**
+     * A class that, given a SemanticFrameSet and a list of featureTokens,
+     * generates a collection of features
+     */
     public abstract class IndividualFeatureGenerator implements Serializable {
         abstract Collection<String> featuresOf(SemanticFrameSet frameSet, List<Token> featureTokens);
     }
 
+    /**
+     * Adds some featuregenerator to the list of feature generators
+     *
+     * @param featureGenerator feature generator to be added
+     * @return index of feature generator in list
+     */
     public int addFeature(IndividualFeatureGenerator featureGenerator) {
         featureGeneratorList.add(featureGenerator);
         return featureGeneratorList.size() - 1;
@@ -131,6 +175,14 @@ public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
 
     }
 
+    /**
+     * Loads a feature generator from some file path.
+     *
+     * @param path path to saved feature generator
+     * @return loaded feature generator
+     * @throws ClassNotFoundException
+     * @throws IOException
+     */
     public static ExtensibleOnlineFeatureGenerator load(String path) throws ClassNotFoundException, IOException {
         GZIPInputStream is = new GZIPInputStream(new FileInputStream(path));
 
@@ -142,6 +194,11 @@ public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
         return ex;
     }
 
+    /**
+     * Saves this feature generator to some file
+     *
+     * @param path file path to save to
+     */
     public void save(String path) {
         try {
             ObjectOutputStream out = new ObjectOutputStream(new BufferedOutputStream(

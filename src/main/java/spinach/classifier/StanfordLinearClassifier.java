@@ -8,6 +8,11 @@ import edu.stanford.nlp.stats.Counter;
 
 import java.io.IOException;
 
+/**
+ * Wrapper class for the Stanford LinearClassifier class to implement the Classifier interface
+ *
+ * @author Calvin Huang
+ */
 public class StanfordLinearClassifier implements Classifier {
 
     private LinearClassifier<String, String> linearClassifier;

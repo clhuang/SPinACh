@@ -12,6 +12,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Given a sentence, a PredicateClassifier classifies the predicates of that sentence
+ *
+ * @author Calvin Huang
+ */
 public class PredicateClassifier {
 
     protected final PerceptronClassifier classifier;
@@ -20,20 +25,38 @@ public class PredicateClassifier {
     public final static String PREDICATE_LABEL = "predicate";
     public final static String NOT_PREDICATE_LABEL = "not_predicate";
 
+    /**
+     * Makes a predicate classifier from a perceptron and a feature generator
+     *
+     * @param classifier       perceptron used to classify predicates
+     * @param featureGenerator feature generator to generate features
+     */
     public PredicateClassifier(PerceptronClassifier classifier, PredicateFeatureGenerator featureGenerator) {
         this.classifier = classifier;
         this.featureGenerator = featureGenerator;
     }
 
+    /**
+     * Adds a list of predicates to a sentence
+     *
+     * @param sentence sentence to analyze
+     * @return the same sentence with a list of predicates
+     */
     public TokenSentenceAndPredicates sentenceWithPredicates(TokenSentence sentence) {
         return sentenceWithPredicates(sentence, false);
     }
 
+    /**
+     * Adds a list of predicates to a sentence based on training weights
+     *
+     * @param sentence sentence to analyze
+     * @return the same sentence with a list of predicates
+     */
     public TokenSentenceAndPredicates trainingSentenceWithPredicates(TokenSentence sentence) {
         return sentenceWithPredicates(sentence, true);
     }
 
-    public TokenSentenceAndPredicates sentenceWithPredicates(TokenSentence sentence, boolean training) {
+    private TokenSentenceAndPredicates sentenceWithPredicates(TokenSentence sentence, boolean training) {
         TokenSentenceAndPredicates sentenceAndPredicates = new TokenSentenceAndPredicates(sentence);
         for (Token t : sentenceAndPredicates) {
             String predicateClass;
@@ -48,6 +71,12 @@ public class PredicateClassifier {
         return sentenceAndPredicates;
     }
 
+    /**
+     * Generates a dataset from a frameset to be used in training
+     *
+     * @param frameSet sentence to be analyzed
+     * @return dataset with features of sentence
+     */
     public Dataset<String, String> datasetFrom(SemanticFrameSet frameSet) {
         Dataset<String, String> dataset = new Dataset<String, String>();
         Set<Token> predicates = new HashSet<Token>(frameSet.getPredicateList());
@@ -63,6 +92,12 @@ public class PredicateClassifier {
         return dataset;
     }
 
+    /**
+     * Generates a dataset from a set of frames to be used in training
+     *
+     * @param frameSets sentences to be analyzed
+     * @return dataset with features of sentences
+     */
     public Dataset<String, String> datasetFrom(List<SemanticFrameSet> frameSets) {
         Dataset<String, String> dataset = new Dataset<String, String>();
         for (SemanticFrameSet frameSet : frameSets)
@@ -73,26 +108,32 @@ public class PredicateClassifier {
         return dataset;
     }
 
-    public void update(SemanticFrameSet predictedFrame, SemanticFrameSet goldFrame) {
+    /**
+     * Updates the perceptron using gold and predicted sentences
+     *
+     * @param predictedSentence predicted sentence
+     * @param goldSentence      true sentence
+     */
+    public void update(TokenSentenceAndPredicates predictedSentence, TokenSentenceAndPredicates goldSentence) {
         Dataset<String, String> dataset = new Dataset<String, String>();
 
-        for (Token t : goldFrame) {
+        for (Token t : goldSentence) {
 
             String goldLabel;
             String predictedLabel;
 
-            if (goldFrame.isPredicate(t))
+            if (goldSentence.isPredicate(t))
                 goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + PredicateClassifier.PREDICATE_LABEL;
             else
                 goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + PredicateClassifier.NOT_PREDICATE_LABEL;
 
-            if (predictedFrame.isPredicate(t))
+            if (predictedSentence.isPredicate(t))
                 predictedLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + PredicateClassifier.PREDICATE_LABEL;
             else
                 predictedLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + PredicateClassifier.NOT_PREDICATE_LABEL;
 
             BasicDatum<String, String> datum = (BasicDatum<String, String>)
-                    featureGenerator.datumFrom(predictedFrame, t);
+                    featureGenerator.datumFrom(predictedSentence, t);
 
             datum.addLabel(goldLabel);
             datum.addLabel(predictedLabel);

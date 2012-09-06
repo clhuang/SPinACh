@@ -10,15 +10,28 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
 
+/**
+ * Generates features for some sentence, argument, and predicate for argument classification
+ *
+ * @author Calvin Huang
+ */
 public class ArgumentFeatureGenerator {
 
+    /**
+     * Generates a datum with features for some sentence, some argument, and some predicate
+     *
+     * @param frameSet  SemanticFrameSet used to generate features
+     * @param argument  possible argument to generate features for
+     * @param predicate predicate that the argument is the argument of
+     * @return datum (without label) for this sentence, predicate and argument
+     */
     public Datum<String, String> datumFrom(SemanticFrameSet frameSet,
                                            Token argument, Token predicate) {
         return new BasicDatum<String, String>(featuresOf(frameSet, argument, predicate));
     }
 
-    public Collection<String> featuresOf(SemanticFrameSet sentenceAndPredicates,
-                                         Token argument, Token predicate) {
+    protected Collection<String> featuresOf(SemanticFrameSet sentenceAndPredicates,
+                                            Token argument, Token predicate) {
 
         Collection<String> features = new ArrayList<String>();
 

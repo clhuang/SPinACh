@@ -7,6 +7,11 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * A class for various utilities that deal with text corpuses.
+ *
+ * @author Calvin Huang
+ */
 public class CorpusUtils {
 
     public static final int INDEX_COLUMN = 0;
@@ -22,9 +27,9 @@ public class CorpusUtils {
      * Given the location of an annotated text corpus, returns a list of semantic frames
      *
      * @param corpusLoc text corpus location
-     * @return  list of semantic framesets, one for each sentence in the corpus
+     * @return list of semantic framesets, one for each sentence in the corpus
      */
-    public static List<SemanticFrameSet> parseCorpus(String corpusLoc){
+    public static List<SemanticFrameSet> parseCorpus(String corpusLoc) {
 
         List<SemanticFrameSet> sentences =
                 new ArrayList<SemanticFrameSet>();
@@ -42,11 +47,11 @@ public class CorpusUtils {
 
         try {
             while ((strLine = br.readLine()) != null) {
-                if (strLine.equals("")){    //sentence is over, enter sentence data into set
+                if (strLine.equals("")) {    //sentence is over, enter sentence data into set
 
                     SemanticFrameSet goldFrames = new SemanticFrameSet();
 
-                    for (String[] tokenData : sentenceTokenData){   //add tokens into sentence; predicates into frames
+                    for (String[] tokenData : sentenceTokenData) {   //add tokens into sentence; predicates into frames
                         Token token = new Token(
                                 tokenData[FORM_COLUMN],
                                 tokenData[LEMMA_COLUMN],
@@ -64,10 +69,10 @@ public class CorpusUtils {
 
                     List<Token> predicates = goldFrames.getPredicateList();
 
-                    for (String[] tokenData: sentenceTokenData){    //link arguments to predicates
+                    for (String[] tokenData : sentenceTokenData) {    //link arguments to predicates
                         Token thisToken = goldFrames.tokenAt(Integer.parseInt(tokenData[INDEX_COLUMN]) - 1);
                         for (int i = ARGS_START_COLUMN; i < tokenData.length; i++)
-                            if (!tokenData[i].equals("_")){
+                            if (!tokenData[i].equals("_")) {
                                 int predicateNum = i - ARGS_START_COLUMN;
                                 goldFrames.addArgument(predicates.get(predicateNum),
                                         thisToken,
@@ -78,9 +83,7 @@ public class CorpusUtils {
                     sentences.add(goldFrames);
 
                     sentenceTokenData.clear();
-                }
-
-                else{   //is token in same sentence
+                } else {   //is token in same sentence
                     sentenceTokenData.add(strLine.split("\\s+"));
                 }
             }

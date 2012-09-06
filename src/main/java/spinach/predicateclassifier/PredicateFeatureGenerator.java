@@ -9,6 +9,11 @@ import spinach.sentence.TokenSentenceAndPredicates;
 
 import java.util.*;
 
+/**
+ * Generates features for some sentence and predicate candidate, for predicate classification
+ *
+ * @author Calvin Huang
+ */
 public class PredicateFeatureGenerator {
 
     public static final int WORD_SHAPER = WordShapeClassifier.WORDSHAPECHRIS2;
@@ -53,7 +58,8 @@ public class PredicateFeatureGenerator {
 
     /**
      * Generates a datum with features for some token and the surrrounding sentence
-     * @param sentence sentence the predicate is in
+     *
+     * @param sentence  sentence the predicate is in
      * @param predicate predicate to generate the features around
      * @return datum
      */
@@ -61,7 +67,7 @@ public class PredicateFeatureGenerator {
         return new BasicDatum<String, String>(featuresOf(sentence, predicate));
     }
 
-    public Collection<String> featuresOf(TokenSentence sentence, Token predicate) {
+    protected Collection<String> featuresOf(TokenSentence sentence, Token predicate) {
 
         List<String> features = new ArrayList<String>();
 

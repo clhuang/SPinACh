@@ -4,6 +4,9 @@ import edu.stanford.nlp.classify.Dataset;
 import edu.stanford.nlp.ling.Datum;
 import edu.stanford.nlp.stats.Counter;
 
+/**
+ * An interface that allows for classes to utilize a general linear classifier--
+ */
 public interface Classifier {
 
     /**

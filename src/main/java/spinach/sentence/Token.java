@@ -3,6 +3,7 @@ package spinach.sentence;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 
+
 /**
  * Token in a sentence; stores information about itself
  * such as its form, lemma, part of speech.
@@ -27,6 +28,16 @@ public class Token {
     public final int headSentenceIndex;
     public final int sentenceIndex;
 
+    /**
+     * Generates token for some word
+     *
+     * @param form                 word form
+     * @param lemma                word lemma
+     * @param pos                  word part of speech
+     * @param semanticHeadRelation relation to this word's syntactic head (if applicable)
+     * @param headSentenceIndex    index of this word's syntactic head (-1 if none)
+     * @param sentenceIndex        index of this word in the sentence
+     */
     public Token(String form, String lemma,
                  String pos, String semanticHeadRelation,
                  int headSentenceIndex, int sentenceIndex) {
