@@ -249,4 +249,11 @@ public abstract class ArgumentClassifier {
     public boolean isFeatureTrainable() {
         return featureGenerator instanceof ExtensibleOnlineFeatureGenerator;
     }
+
+    /**
+     * Resets the perceptron for this classifier so that it can be retrained
+     */
+    public void reset() {
+        classifier.reset();
+    }
 }

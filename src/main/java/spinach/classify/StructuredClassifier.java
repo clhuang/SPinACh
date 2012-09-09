@@ -1,7 +1,10 @@
 package spinach.classify;
 
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import spinach.argumentclassifier.ArgumentClassifier;
 import spinach.argumentclassifier.featuregen.ExtensibleOnlineFeatureGenerator;
+import spinach.argumentclassifier.featuregen.IndividualFeatureGenerator;
 import spinach.predicateclassifier.PredicateClassifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.TokenSentence;
@@ -21,7 +24,10 @@ public class StructuredClassifier implements GEN {
     private final PredicateClassifier predicateClassifier;
     private final int epochs;
 
-    private final double FEATURE_INCREMENT_THRESHOLD = 0.01;
+    private ExtensibleOnlineFeatureGenerator featureGenerator;
+
+    private Collection<SemanticFrameSet> trainingFrames;
+    private Collection<SemanticFrameSet> testingFrames;
 
     /**
      * Generates a structured classifier with a certain argument classifier, predicate classifier,
@@ -80,10 +86,15 @@ public class StructuredClassifier implements GEN {
      * @param goldFrames SemanticFrameSets with known good semantic data
      */
     public void train(Collection<SemanticFrameSet> goldFrames) {
+        setTrainingFrames(goldFrames);
+        train();
+    }
 
+
+    private void train() {
         for (int i = 0; i < epochs; i++) {
 
-            List<SemanticFrameSet> goldFramesCopy = new ArrayList<SemanticFrameSet>(goldFrames);
+            List<SemanticFrameSet> goldFramesCopy = new ArrayList<SemanticFrameSet>(trainingFrames);
 
             Collections.shuffle(goldFramesCopy, new Random(i));
 
@@ -103,42 +114,129 @@ public class StructuredClassifier implements GEN {
         argumentClassifier.update(predictedFrame, goldFrame);
     }
 
+    public void setTrainingFrames(Collection<SemanticFrameSet> goldFrames) {
+        trainingFrames = goldFrames;
+    }
+
     /**
      * Trains the argument feature generator for this object's ArgumentClassifier--
      * enables features that increase the F1 of the structured classifier
      *
-     * @param goldFrames SemanticFrameSets with known good semantic data
+     * @param trainingFrames SemanticFrameSets with known good semantic data, to train on
+     * @param testingFrames  SemanticFrameSets with known good semantic data, to test against
      */
-    public void trainArgumentFeatureGenerator(List<SemanticFrameSet> goldFrames) {
-        double previousF1;
-        Metric metric;
+    public void trainArgumentFeatureGenerator(List<SemanticFrameSet> trainingFrames,
+                                              List<SemanticFrameSet> testingFrames) {
+        this.trainingFrames = trainingFrames;
+        this.testingFrames = testingFrames;
 
-        ExtensibleOnlineFeatureGenerator featureGenerator;
         if (argumentClassifier.isFeatureTrainable())
             featureGenerator = (ExtensibleOnlineFeatureGenerator) argumentClassifier.getFeatureGenerator();
         else {
             System.err.println("Cannot train feature generator--is not a trainable feature generator");
             return;
         }
+
         featureGenerator.clearFeatures();
 
-        train(goldFrames);
-        metric = new Metric(this, goldFrames);
-        previousF1 = metric.argumentF1s().getCount(Metric.TOTAL);
+        Random random = new Random();
+        for (IndividualFeatureGenerator i : featureGenerator.featureGeneratorSet())    //random subset of features
+            if (random.nextBoolean())
+                featureGenerator.enableFeatureType(i);
 
-        for (int i = 0; i < featureGenerator.numFeatureTypes(); i++) {
-            featureGenerator.enableFeatureType(i);
-            train(goldFrames);
+        Set<IndividualFeatureGenerator> featureGeneratorSet = featureGenerator.enabledFeatures();
 
-            metric.recalculateScores();
-            double F1 = metric.argumentF1s().getCount(Metric.TOTAL);
+        while (true) {
+            Set<IndividualFeatureGenerator> additions = recruitMore(featureGeneratorSet);
+            if (additions.isEmpty())
+                return;
 
-            if (F1 > previousF1 + FEATURE_INCREMENT_THRESHOLD)
-                previousF1 = F1;
-            else
-                featureGenerator.disableFeatureType(i);
+            Set<IndividualFeatureGenerator> updatedFeatureGeneratorSet = shakeOff(
+                    Sets.union(featureGeneratorSet, additions));
 
+            if (argumentTrainAndScore(featureGeneratorSet) > argumentTrainAndScore(updatedFeatureGeneratorSet))
+                return;
+
+            featureGeneratorSet = updatedFeatureGeneratorSet;
         }
+    }
+
+    private double argumentTrainAndScore(Set<IndividualFeatureGenerator> featureGenerators) {
+        argumentClassifier.reset();
+        predicateClassifier.reset();
+        featureGenerator.setFeatureGenerators(featureGenerators);
+        train();
+        return new Metric(this, testingFrames).argumentF1s().getCount(
+                Metric.TOTAL);
+    }
+
+    private Set<IndividualFeatureGenerator> recruitMore(Set<IndividualFeatureGenerator> featureGenerators) {
+        Set<IndividualFeatureGenerator> additions = new HashSet<IndividualFeatureGenerator>();
+        Set<IndividualFeatureGenerator> possibleAdditions = featureGenerator.disabledFeatures();
+
+        double originalScore = argumentTrainAndScore(featureGenerators);
+
+        for (IndividualFeatureGenerator possibleAddition : possibleAdditions)
+            if (argumentTrainAndScore(Sets.union(featureGenerators, Collections.singleton(possibleAddition))) > originalScore)
+                additions.add(possibleAddition);
+
+        return additions;
+    }
+
+    private Set<IndividualFeatureGenerator> shakeOff(Set<IndividualFeatureGenerator> featureGeneratorSet) {
+        Set<IndividualFeatureGenerator> maxFeatureGenerators =
+                new HashSet<IndividualFeatureGenerator>(featureGeneratorSet);
+
+        while (true) {
+            Set<IndividualFeatureGenerator> originalFeatureGenerators =
+                    new HashSet<IndividualFeatureGenerator>(maxFeatureGenerators);
+            Map<IndividualFeatureGenerator, Double> unsortedFeatureGenerators =
+                    new HashMap<IndividualFeatureGenerator, Double>();
+
+            Set<IndividualFeatureGenerator> currentFeatureGenerators =
+                    new HashSet<IndividualFeatureGenerator>(originalFeatureGenerators);
+
+            for (IndividualFeatureGenerator generator : originalFeatureGenerators) {
+                currentFeatureGenerators.remove(generator);
+                unsortedFeatureGenerators.put(generator, argumentTrainAndScore(currentFeatureGenerators));
+                currentFeatureGenerators.add(generator);
+            }
+
+
+            double sMaxScore = 0;
+            boolean maxScoreUpToDate = false;
+            for (Set<IndividualFeatureGenerator> sortedFeatureGenerators =
+                         invertedSortByValues(unsortedFeatureGenerators).keySet();
+                 !sortedFeatureGenerators.isEmpty();
+                 sortedFeatureGenerators.remove(Iterables.getFirst(sortedFeatureGenerators, null))) {
+
+                if (!maxScoreUpToDate) {
+                    sMaxScore = argumentTrainAndScore(maxFeatureGenerators);
+                    maxScoreUpToDate = true;
+                }
+
+                if (argumentTrainAndScore(sortedFeatureGenerators) > sMaxScore) {
+                    maxFeatureGenerators =
+                            new HashSet<IndividualFeatureGenerator>(sortedFeatureGenerators);
+                    maxScoreUpToDate = false;
+                }
+            }
+            if (originalFeatureGenerators.equals(maxFeatureGenerators))
+                return originalFeatureGenerators;
+        }
+    }
+
+    private static <K, V extends Comparable<V>> Map<K, V> invertedSortByValues(final Map<K, V> map) {
+        Comparator<K> valueComparator = new Comparator<K>() {
+            public int compare(K k1, K k2) {
+                int compare = map.get(k2).compareTo(map.get(k1));
+                if (compare == 0) return 1;
+                else return -compare;
+            }
+        };
+        Map<K, V> sortedByValues = new TreeMap<K, V>(valueComparator);
+        sortedByValues.putAll(map);
+        return new LinkedHashMap<K, V>(sortedByValues);
     }
 
 }

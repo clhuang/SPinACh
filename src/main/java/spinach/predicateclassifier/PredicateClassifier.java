@@ -145,4 +145,11 @@ public class PredicateClassifier {
 
     }
 
+    /**
+     * Resets the perceptron for this classifier so that it can be retrained
+     */
+    public void reset() {
+        classifier.reset();
+    }
+
 }

@@ -19,11 +19,6 @@ public class Main {
         Dataset<String, String> goldDataset = argumentClassifier.datasetFrom(frameSets);
 
 
-        perceptronClassifier.train(goldDataset);
-
-        perceptronClassifier.save("src/test/resources/argumentClassifier.gz");
-
-
         /*PredicateFeatureGenerator predicateFeatureGenerator = new PredicateFeatureGenerator();
         PredicateClassifier predicateClassifier = new PredicateClassifier(new PerceptronClassifier(), predicateFeatureGenerator);
         for (Datum<String, String> d : predicateClassifier.datasetFrom(frameSet)){

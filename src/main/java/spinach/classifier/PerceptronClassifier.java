@@ -5,6 +5,7 @@ import edu.stanford.nlp.ling.Datum;
 import edu.stanford.nlp.stats.ClassicCounter;
 import edu.stanford.nlp.stats.Counter;
 import edu.stanford.nlp.util.ErasureUtils;
+import edu.stanford.nlp.util.HashIndex;
 import edu.stanford.nlp.util.Index;
 
 import java.io.*;
@@ -35,11 +36,14 @@ public class PerceptronClassifier implements Classifier, Serializable {
      */
     static class LabelWeights implements Serializable {
         private static final long serialVersionUID = 1L;
+        private static final int MIN_NUM_FEATURES = 50000;
         double[] weights;
         int survivalIterations;
         double[] avgWeights;
 
         LabelWeights(int numFeatures) {
+            if (numFeatures < MIN_NUM_FEATURES)
+                numFeatures = MIN_NUM_FEATURES;
             weights = new double[numFeatures];
             avgWeights = new double[numFeatures];
             survivalIterations = 0;
@@ -49,14 +53,18 @@ public class PerceptronClassifier implements Classifier, Serializable {
             survivalIterations++;
         }
 
-        private void updateAverage() {
+        void updateAverage() {
+            if (survivalIterations == 0)
+                return;
+
             for (int i = 0; i < weights.length; i++) {
                 avgWeights[i] += weights[i] * survivalIterations;
             }
+            survivalIterations = 0;
         }
 
-        /*
-        Increase array size to accomodate individual features
+        /**
+         * Increase array size to accomodate individual features
          */
         private void expand() {
             int newLength = (int) Math.ceil(weights.length * ARRAY_INCREMENT_FACTOR);
@@ -72,8 +80,6 @@ public class PerceptronClassifier implements Classifier, Serializable {
                     expand();
                 weights[d] += weight;
             }
-
-            survivalIterations = 0;
         }
 
         double dotProduct(Set<Integer> featureIndices) {
@@ -90,8 +96,8 @@ public class PerceptronClassifier implements Classifier, Serializable {
 
     ArrayList<LabelWeights> zWeights = new ArrayList<LabelWeights>();
 
-    public Index<String> labelIndex;
-    public Index<String> featureIndex;
+    public Index<String> labelIndex = new HashIndex<String>();
+    public Index<String> featureIndex = new HashIndex<String>();
 
     final int epochs;
 
@@ -251,7 +257,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
 
     private void train(Set<Integer> featureIndices, String goldLabel, String predictedLabel) {
 
-        int predictedArgIndex = labelIndex.indexOf(predictedLabel);
+        int predictedArgIndex = labelIndex.indexOf(predictedLabel, true);
         int goldArgIndex = labelIndex.indexOf(goldLabel, true);
 
         if (goldArgIndex > zWeights.size())
@@ -309,7 +315,9 @@ public class PerceptronClassifier implements Classifier, Serializable {
         double maxDotProduct = Double.NEGATIVE_INFINITY;
         int argMax = -1;
         for (int i = 0; i < zWeights.size(); i++) {
-            double dotProduct = LabelWeights.dotProduct(exampleFeatureIndices, zWeights.get(i).avgWeights);
+            LabelWeights l = zWeights.get(i);
+            l.updateAverage();
+            double dotProduct = LabelWeights.dotProduct(exampleFeatureIndices, l.avgWeights);
             if (dotProduct > maxDotProduct) {
                 maxDotProduct = dotProduct;
                 argMax = i;
@@ -328,8 +336,10 @@ public class PerceptronClassifier implements Classifier, Serializable {
         Counter<String> scores = new ClassicCounter<String>();
         Set<Integer> featureCounts = featuresOf(datum);
         for (int i = 0; i < labelIndex.size(); i++) {
+            LabelWeights l = zWeights.get(i);
+            l.updateAverage();
             scores.incrementCount(labelIndex.get(i),
-                    LabelWeights.dotProduct(featureCounts, zWeights.get(i).avgWeights));
+                    LabelWeights.dotProduct(featureCounts, l.avgWeights));
         }
         return scores;
     }
@@ -371,4 +381,12 @@ public class PerceptronClassifier implements Classifier, Serializable {
         return argMaxDotProduct(featuresOf(datum));
     }
 
+    /**
+     * Clears the weights, the label index, and the feature index.
+     */
+    public void reset() {
+        zWeights.clear();
+        labelIndex.clear();
+        featureIndex.clear();
+    }
 }

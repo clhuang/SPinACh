@@ -1,5 +1,6 @@
 package spinach.argumentclassifier.featuregen;
 
+import com.google.common.collect.Sets;
 import edu.stanford.nlp.util.ErasureUtils;
 import spinach.argumentclassifier.ArgumentClassifier;
 import spinach.sentence.SemanticFrameSet;
@@ -18,26 +19,9 @@ import java.util.zip.GZIPOutputStream;
  */
 public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
 
-    private Set<Integer> featureTypes;
-    private List<IndividualFeatureGenerator> featureGeneratorList =
-            new ArrayList<IndividualFeatureGenerator>();
-
-    /**
-     * Generates a new feature generator, with no enabled features
-     */
-    public ExtensibleOnlineFeatureGenerator() {
-        this(new HashSet<Integer>());
-    }
-
-    /**
-     * Generates a new feature generator
-     *
-     * @param featureNums indices of extra features
-     */
-    public ExtensibleOnlineFeatureGenerator(Set<Integer> featureNums) {
-        featureTypes = featureNums;
-        addDefaultFeatures();
-    }
+    private Set<IndividualFeatureGenerator> enabledFeatures;
+    private Set<IndividualFeatureGenerator> featureGeneratorList =
+            new HashSet<IndividualFeatureGenerator>();
 
     @Override
     protected Collection<String> featuresOf(SemanticFrameSet sentenceAndPredicates,
@@ -62,8 +46,8 @@ public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
         featureTokens.add(ppHead);
 
 
-        for (Integer i : featureTypes) {
-            Collection<String> newFeatures = featureGeneratorList.get(i).
+        for (IndividualFeatureGenerator featureGenerator : enabledFeatures) {
+            Collection<String> newFeatures = featureGenerator.
                     featuresOf(sentenceAndPredicates, featureTokens);
             if (newFeatures != null)
                 features.addAll(newFeatures);
@@ -74,23 +58,23 @@ public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
     }
 
     /**
-     * Enables a certain feature by feature number
+     * Enables a certain feature
      *
-     * @param featureNum index of feature in list of features
+     * @param featureGenerator feature to enable
      * @return whether or not feature was actually added (may have already been present)
      */
-    public boolean enableFeatureType(int featureNum) {
-        return featureTypes.add(featureNum);
+    public boolean enableFeatureType(IndividualFeatureGenerator featureGenerator) {
+        return enabledFeatures.add(featureGenerator);
     }
 
     /**
-     * Disables a certain feature by feature number
+     * Disables a certain feature
      *
-     * @param featureNum index of feature in list of features
-     * @return whether or not feature was actually added (may not have been present)
+     * @param featureGenerator feature to disable
+     * @return whether or not feature was actually disable (may not have been present)
      */
-    public boolean disableFeatureType(int featureNum) {
-        return featureTypes.remove(featureNum);
+    public boolean disableFeatureType(IndividualFeatureGenerator featureGenerator) {
+        return enabledFeatures.remove(featureGenerator);
     }
 
     public int numFeatureTypes() {
@@ -103,22 +87,14 @@ public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
      * @return number of enabled extra features
      */
     public int numAddlFeatures() {
-        return featureTypes.size();
+        return enabledFeatures.size();
     }
 
     /**
      * Disables all extra features
      */
     public void clearFeatures() {
-        featureTypes.clear();
-    }
-
-    /**
-     * A class that, given a SemanticFrameSet and a list of featureTokens,
-     * generates a collection of features
-     */
-    public abstract class IndividualFeatureGenerator implements Serializable {
-        abstract Collection<String> featuresOf(SemanticFrameSet frameSet, List<Token> featureTokens);
+        enabledFeatures.clear();
     }
 
     /**
@@ -143,10 +119,10 @@ public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
         });
 
         addFeature(new IndividualFeatureGenerator() {
-            //1: previousArgClass
+            String identifier = "previousArgClass";
+
             @Override
             public Collection<String> featuresOf(SemanticFrameSet frameSet, List<Token> featureTokens) {
-                List<String> feature = new ArrayList<String>(1);
                 int mostRecentArgumentIndex = -1;
                 String mostRecentLabel = null;
 
@@ -160,18 +136,16 @@ public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
                 }
 
                 if (mostRecentLabel == null)
-                    feature.add("previousArgClass:" + ArgumentClassifier.NIL_LABEL);
+                    return Collections.singletonList("previousArgClass:" + ArgumentClassifier.NIL_LABEL);
                 else
-                    feature.add("previousArgClass:" + mostRecentLabel);
-
-                return feature;
+                    return Collections.singletonList("previousArgClass:" + mostRecentLabel);
             }
         });
     }
 
     private void load(ObjectInputStream in) throws IOException, ClassNotFoundException {
         featureGeneratorList = ErasureUtils.uncheckedCast(in.readObject());
-        featureTypes = ErasureUtils.uncheckedCast(in.readObject());
+        enabledFeatures = ErasureUtils.uncheckedCast(in.readObject());
 
     }
 
@@ -205,12 +179,28 @@ public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
                     new GZIPOutputStream(new FileOutputStream(path))));
 
             out.writeObject(featureGeneratorList);
-            out.writeObject(featureTypes);
+            out.writeObject(enabledFeatures);
 
             out.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public Set<IndividualFeatureGenerator> featureGeneratorSet() {
+        return Collections.unmodifiableSet(featureGeneratorList);
+    }
+
+    public void setFeatureGenerators(Set<IndividualFeatureGenerator> featureGenerators) {
+        enabledFeatures = new HashSet<IndividualFeatureGenerator>(featureGenerators);
+    }
+
+    public Set<IndividualFeatureGenerator> enabledFeatures() {
+        return Collections.unmodifiableSet(enabledFeatures);
+    }
+
+    public Set<IndividualFeatureGenerator> disabledFeatures() {
+        return Sets.difference(featureGeneratorList, enabledFeatures).immutableCopy();
     }
 
 }
