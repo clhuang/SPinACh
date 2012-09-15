@@ -35,7 +35,7 @@ public class SemanticFrameSet extends TokenSentenceAndPredicates {
      */
     public void addArgument(Token predicate, Token argument, String relation) {
         //relations.put(predicate, new Pair<Token, String>(argument, relation));
-        Map<Token, String> predicateMap = argumentsOf(predicate);
+        Map<Token, String> predicateMap = relations.get(predicate);
         if (predicateMap == null) {
             predicateMap = new HashMap<Token, String>();
             predicateMap.put(argument, relation);
@@ -52,18 +52,22 @@ public class SemanticFrameSet extends TokenSentenceAndPredicates {
      * @return arguments of this predicate, and their relations
      */
     public Map<Token, String> argumentsOf(Token predicate) {
-        return Collections.unmodifiableMap(relations.get(predicate));
+        Map<Token, String> m = relations.get(predicate);
+        if (m == null)
+            return new HashMap<Token, String>();
+        return Collections.unmodifiableMap(m);
     }
 
     /**
      * Trim the list of predicates--any predicate without arguments is removed
      */
     public void trimPredicates() {
-        for (ListIterator<Token> iterator =
-                     predicateList.listIterator(predicateList.size());
-             iterator.hasPrevious(); )
-            if (argumentsOf(iterator.previous()).isEmpty())
+        for (ListIterator<Token> iterator = predicateList.listIterator(predicateList.size());
+             iterator.hasPrevious(); ) {
+            Map<Token, String> arguments = argumentsOf(iterator.previous());
+            if (arguments == null || arguments.isEmpty())
                 iterator.remove();
+        }
     }
 
 }

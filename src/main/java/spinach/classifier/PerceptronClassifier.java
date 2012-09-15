@@ -34,19 +34,26 @@ public class PerceptronClassifier implements Classifier, Serializable {
     LabelWeights, for each label, provides a vector that when, multiplied
     by the feature vector for a datum, returns the score for that datum.
      */
-    static class LabelWeights implements Serializable {
+    class LabelWeights implements Serializable {
         private static final long serialVersionUID = 1L;
         private static final int MIN_NUM_FEATURES = 50000;
         double[] weights;
         int survivalIterations;
         double[] avgWeights;
 
-        LabelWeights(int numFeatures) {
+        private final String label;
+
+        LabelWeights(String label) {
+            this(0, label);
+        }
+
+        LabelWeights(int numFeatures, String label) {
             if (numFeatures < MIN_NUM_FEATURES)
                 numFeatures = MIN_NUM_FEATURES;
             weights = new double[numFeatures];
             avgWeights = new double[numFeatures];
             survivalIterations = 0;
+            this.label = label;
         }
 
         void incrementSurvivalIterations() {
@@ -57,17 +64,18 @@ public class PerceptronClassifier implements Classifier, Serializable {
             if (survivalIterations == 0)
                 return;
 
-            for (int i = 0; i < weights.length; i++) {
+            for (int i = 0; i < Math.min(PerceptronClassifier.this.numFeatures(), weights.length); i++)
                 avgWeights[i] += weights[i] * survivalIterations;
-            }
             survivalIterations = 0;
         }
 
         /**
-         * Increase array size to accomodate individual features
+         * Increase array size to accommodate individual features
          */
         private void expand() {
-            int newLength = (int) Math.ceil(weights.length * ARRAY_INCREMENT_FACTOR);
+            int newLength = Math.max((int) Math.ceil(weights.length * ARRAY_INCREMENT_FACTOR),
+                    PerceptronClassifier.this.numFeatures());
+            System.out.println("EXPAND " + label);
             weights = Arrays.copyOf(weights, newLength);
             avgWeights = Arrays.copyOf(avgWeights, newLength);
         }
@@ -76,20 +84,29 @@ public class PerceptronClassifier implements Classifier, Serializable {
             updateAverage();
 
             for (int d : exampleFeatureIndices) {
-                while (d > weights.length)
+                while (d >= weights.length)
                     expand();
                 weights[d] += weight;
             }
         }
 
-        double dotProduct(Set<Integer> featureIndices) {
-            return dotProduct(featureIndices, weights);
+        double trainingDotProduct(Set<Integer> featureCounts) {
+            double dotProd = 0;
+            for (int i : featureCounts) {
+                while (i >= weights.length)
+                    expand();
+                dotProd += weights[i];
+            }
+            return dotProd;
         }
 
-        static double dotProduct(Set<Integer> featureCounts, double[] weights) {
+        double avgDotProduct(Set<Integer> featureCounts) {
             double dotProd = 0;
-            for (int i : featureCounts)
-                dotProd += weights[i];
+            for (int i : featureCounts) {
+                while (i > avgWeights.length)
+                    expand();
+                dotProd += avgWeights[i];
+            }
             return dotProd;
         }
     }
@@ -188,7 +205,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
 
         zWeights = new ArrayList<LabelWeights>(labelIndex.size());
         for (int i = 0; i < labelIndex.size(); i++)
-            zWeights.add(new LabelWeights(numFeatures));
+            zWeights.add(new LabelWeights(numFeatures, labelIndex.get(i)));
 
         System.err.println("Running perceptronClassifier on " + dataset.size() + " features");
         long startTime = System.currentTimeMillis();
@@ -248,23 +265,20 @@ public class PerceptronClassifier implements Classifier, Serializable {
                 goldLabel = s.substring(GOLD_LABEL_PREFIX.length());
         }
 
-        if (predictedLabel == null || goldLabel == null) {
-            throw new IllegalArgumentException("The datum provided did not contain the correct labels.");
-        }
-
         train(featuresOf(datum), goldLabel, predictedLabel);
     }
 
     private void train(Set<Integer> featureIndices, String goldLabel, String predictedLabel) {
 
-        int predictedArgIndex = labelIndex.indexOf(predictedLabel, true);
+        int predictedArgIndex = labelIndex.indexOf(predictedLabel);
         int goldArgIndex = labelIndex.indexOf(goldLabel, true);
 
-        if (goldArgIndex > zWeights.size())
-            zWeights.add(new LabelWeights(featureIndex.size()));
+        if (goldArgIndex >= zWeights.size())
+            zWeights.add(new LabelWeights(featureIndex.size(), goldLabel));
 
-        if (!predictedLabel.equals(goldLabel)) {
-            zWeights.get(predictedArgIndex).update(featureIndices, -1.0);
+        if (predictedLabel == null || !predictedLabel.equals(goldLabel)) {
+            if (predictedArgIndex >= 0)
+                zWeights.get(predictedArgIndex).update(featureIndices, -1.0);
             zWeights.get(goldArgIndex).update(featureIndices, 1.0);
         }
 
@@ -295,19 +309,21 @@ public class PerceptronClassifier implements Classifier, Serializable {
         return featureIndices;
     }
 
-    /*
-    Returns the label that gives the greatest score for some features
+    /**
+     * Returns the label that gives the greatest score for some features
      */
     private String argMaxDotProduct(Set<Integer> exampleFeatureIndices) {
         double maxDotProduct = Double.NEGATIVE_INFINITY;
         int argMax = -1;
         for (int i = 0; i < zWeights.size(); i++) {
-            double dotProduct = zWeights.get(i).dotProduct(exampleFeatureIndices);
+            double dotProduct = zWeights.get(i).trainingDotProduct(exampleFeatureIndices);
             if (dotProduct > maxDotProduct) {
                 maxDotProduct = dotProduct;
                 argMax = i;
             }
         }
+        if (argMax == -1)
+            return null;
         return labelIndex.get(argMax);
     }
 
@@ -317,7 +333,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
         for (int i = 0; i < zWeights.size(); i++) {
             LabelWeights l = zWeights.get(i);
             l.updateAverage();
-            double dotProduct = LabelWeights.dotProduct(exampleFeatureIndices, l.avgWeights);
+            double dotProduct = l.avgDotProduct(exampleFeatureIndices);
             if (dotProduct > maxDotProduct) {
                 maxDotProduct = dotProduct;
                 argMax = i;
@@ -337,9 +353,8 @@ public class PerceptronClassifier implements Classifier, Serializable {
         Set<Integer> featureCounts = featuresOf(datum);
         for (int i = 0; i < labelIndex.size(); i++) {
             LabelWeights l = zWeights.get(i);
-            l.updateAverage();
             scores.incrementCount(labelIndex.get(i),
-                    LabelWeights.dotProduct(featureCounts, l.avgWeights));
+                    l.avgDotProduct(featureCounts));
         }
         return scores;
     }
@@ -353,10 +368,9 @@ public class PerceptronClassifier implements Classifier, Serializable {
     public Counter<String> trainingScores(Datum<String, String> datum) {
         Counter<String> scores = new ClassicCounter<String>();
         Set<Integer> featureCounts = featuresOf(datum);
-        for (int i = 0; i < labelIndex.size(); i++) {
+        for (int i = 0; i < labelIndex.size(); i++)
             scores.incrementCount(labelIndex.get(i),
-                    LabelWeights.dotProduct(featureCounts, zWeights.get(i).weights));
-        }
+                    zWeights.get(i).trainingDotProduct(featureCounts));
         return scores;
     }
 
@@ -386,7 +400,17 @@ public class PerceptronClassifier implements Classifier, Serializable {
      */
     public void reset() {
         zWeights.clear();
+
         labelIndex.clear();
         featureIndex.clear();
+    }
+
+    /**
+     * Returns the number of features this classifier has indexed
+     *
+     * @return the size of the feature index
+     */
+    public int numFeatures() {
+        return featureIndex.size();
     }
 }

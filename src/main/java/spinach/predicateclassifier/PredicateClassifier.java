@@ -64,7 +64,7 @@ public class PredicateClassifier {
                 predicateClass = classifier.trainingClassOf(featureGenerator.datumFrom(sentenceAndPredicates, t));
             else
                 predicateClass = classifier.classOf(featureGenerator.datumFrom(sentenceAndPredicates, t));
-            if (predicateClass.equals(PREDICATE_LABEL))
+            if (!(predicateClass == null) && predicateClass.equals(PREDICATE_LABEL))
                 sentenceAndPredicates.addPredicate(t);
         }
 

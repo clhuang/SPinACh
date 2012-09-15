@@ -46,7 +46,8 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier {
                 else
                     argClassScores = argClassScores(frameSet, possibleArg, predicate);
 
-                if (!Counters.argmax(argClassScores).equals("NIL"))
+                String bestArg = Counters.argmax(argClassScores);
+                if (bestArg != null && !bestArg.equals("NIL"))
                     argumentLabelScores.put(possibleArg, argClassScores);
             }
 
@@ -58,7 +59,8 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier {
                 argumentLabelScores.remove(registeredArg);
                 frameSet.addArgument(predicate, registeredArg, argLabel);
 
-                if (!argLabel.equals(ArgumentClassifier.NIL_LABEL) && !argLabel.equals("SU") && !argLabel.startsWith("AM-")) {
+                if (!argLabel.equals(ArgumentClassifier.NIL_LABEL) &&
+                        !argLabel.equals("SU") && !argLabel.startsWith("AM-")) {
 
                     Set<Token> restrictedTokens = frameSet.getDescendants(registeredArg);
                     restrictedTokens.addAll(frameSet.getAncestors(registeredArg));
@@ -70,7 +72,8 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier {
 
                             for (Map.Entry<String, Double> e : tokenLabelScores.entrySet()) {
                                 String label = e.getKey();
-                                if (label.equals(ArgumentClassifier.NIL_LABEL) || label.equals("SU") || label.startsWith("AM-"))
+                                if (label.equals(ArgumentClassifier.NIL_LABEL)
+                                        || label.equals("SU") || label.startsWith("AM-"))
                                     updatedScores.setCount(label, e.getValue());
                             }
                         }

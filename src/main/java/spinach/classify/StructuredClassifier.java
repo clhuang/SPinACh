@@ -10,6 +10,7 @@ import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.TokenSentence;
 import spinach.sentence.TokenSentenceAndPredicates;
 
+import java.text.DateFormat;
 import java.util.*;
 
 /**
@@ -28,6 +29,11 @@ public class StructuredClassifier implements GEN {
 
     private Collection<SemanticFrameSet> trainingFrames;
     private Collection<SemanticFrameSet> testingFrames;
+
+    public static final int TRAIN_ALL = 0;
+    public static final int TRAIN_PREDICATE_C = 1;
+    public static final int TRAIN_ARGUMENT_C = 2;
+    private transient int trainingMode;
 
     /**
      * Generates a structured classifier with a certain argument classifier, predicate classifier,
@@ -80,38 +86,86 @@ public class StructuredClassifier implements GEN {
 
     }
 
+    private SemanticFrameSet argumentTrainingParse(SemanticFrameSet sentence) {
+        return argumentClassifier.trainingFramesWithArguments(sentence);
+    }
+
+    private TokenSentenceAndPredicates predicateTrainingParse(TokenSentence sentence) {
+        return predicateClassifier.trainingSentenceWithPredicates(sentence);
+    }
+
     /**
-     * Trains this structured classifier on a collection of known SemanticFrameSets
+     * Trains this structured classifier on a collection of known SemanticFrameSets.
      *
      * @param goldFrames SemanticFrameSets with known good semantic data
      */
     public void train(Collection<SemanticFrameSet> goldFrames) {
         setTrainingFrames(goldFrames);
+        trainingMode = TRAIN_ALL;
         train();
     }
 
+    public void trainArgumentClassifier(Collection<SemanticFrameSet> goldFrames) {
+        setTrainingFrames(goldFrames);
+        trainingMode = TRAIN_ARGUMENT_C;
+        train();
+    }
+
+    public void trainPredicateClassifier(Collection<SemanticFrameSet> goldFrames) {
+        setTrainingFrames(goldFrames);
+        trainingMode = TRAIN_PREDICATE_C;
+        train();
+    }
 
     private void train() {
+        DateFormat df = DateFormat.getDateTimeInstance();
         for (int i = 0; i < epochs; i++) {
+            System.out.println();
+            System.out.println("Begin training epoch " + i + " of " + epochs);
 
             List<SemanticFrameSet> goldFramesCopy = new ArrayList<SemanticFrameSet>(trainingFrames);
 
             Collections.shuffle(goldFramesCopy, new Random(i));
 
-            for (SemanticFrameSet goldFrame : goldFramesCopy)
+            int j = 0;
+            for (SemanticFrameSet goldFrame : goldFramesCopy) {
+                j++;
                 train(goldFrame);
+                if (j % 1000 == 0) {
+                    Date date = new Date();
+                    System.out.println("Trained " + j + " sentences of " + trainingFrames.size() + " | " +
+                            df.format(date));
+                }
+            }
         }
     }
 
     private void train(SemanticFrameSet goldFrame) {
 
         //when this is run, parse ignores the predicates and semantic data
-        SemanticFrameSet predictedFrame = trainingParse(goldFrame);
+        SemanticFrameSet predictedFrame;
 
-        predictedFrame.trimPredicates();
+        switch (trainingMode) {
 
-        predicateClassifier.update(predictedFrame, goldFrame);
-        argumentClassifier.update(predictedFrame, goldFrame);
+            case TRAIN_ALL:
+                predictedFrame = trainingParse(goldFrame);
+                predictedFrame.trimPredicates();
+
+                predicateClassifier.update(predictedFrame, goldFrame);
+                argumentClassifier.update(predictedFrame, goldFrame);
+                break;
+
+            case TRAIN_ARGUMENT_C:
+                predictedFrame = argumentTrainingParse(goldFrame);
+                argumentClassifier.update(predictedFrame, goldFrame);
+                break;
+
+            case TRAIN_PREDICATE_C:
+                TokenSentenceAndPredicates predictedPredicates = predicateTrainingParse(goldFrame);
+                predicateClassifier.update(predictedPredicates, goldFrame);
+                break;
+        }
+
     }
 
     public void setTrainingFrames(Collection<SemanticFrameSet> goldFrames) {

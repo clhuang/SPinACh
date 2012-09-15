@@ -19,6 +19,10 @@ import java.util.zip.GZIPOutputStream;
  */
 public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
 
+    private static final String ARGUMENT = "argument";
+    private static final String PREDICATE = "predicate";
+    private static final String PP_HEAD = "pphead";
+
     private Set<IndividualFeatureGenerator> enabledFeatures;
     private Set<IndividualFeatureGenerator> featureGeneratorList =
             new HashSet<IndividualFeatureGenerator>();
@@ -28,22 +32,22 @@ public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
                                             Token argument, Token predicate) {
 
         Collection<String> features = super.featuresOf(sentenceAndPredicates, argument, predicate);
-        List<Token> featureTokens = new ArrayList<Token>();
+        Map<String, Token> featureTokens = new HashMap<String, Token>();
         /* featureToken tokens:
-        0: argument
-        1: predicate
-        2: ppHead
+        argument
+        predicate
+        ppHead
          */
 
-        featureTokens.add(argument);
-        featureTokens.add(predicate);
+        featureTokens.put(ARGUMENT, argument);
+        featureTokens.put(PREDICATE, predicate);
 
         Token ppHead;
         if (argument.syntacticHeadRelation.equals("PMOD"))
             ppHead = sentenceAndPredicates.getLeftSiblings(argument).getLast();
         else
             ppHead = sentenceAndPredicates.getParent(argument);
-        featureTokens.add(ppHead);
+        featureTokens.put(PP_HEAD, ppHead);
 
 
         for (IndividualFeatureGenerator featureGenerator : enabledFeatures) {
@@ -109,24 +113,25 @@ public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
     }
 
     private void addDefaultFeatures() {
-        addFeature(new IndividualFeatureGenerator() {
+        addFeature(new IndividualFeatureGenerator("TODO") {
+
             //0: existSemDeprel
             @Override
-            public Collection<String> featuresOf(SemanticFrameSet frameSet, List<Token> featureTokens) {
+            public Collection<String> featuresOf(SemanticFrameSet frameSet, Map<String, Token> featureTokens) {
                 //TODO
                 return null;
             }
         });
 
-        addFeature(new IndividualFeatureGenerator() {
-            String identifier = "previousArgClass";
+        addFeature(new IndividualFeatureGenerator("previousArgClass") {
 
             @Override
-            public Collection<String> featuresOf(SemanticFrameSet frameSet, List<Token> featureTokens) {
+            public Collection<String> featuresOf(SemanticFrameSet frameSet, Map<String, Token> featureTokens) {
+
                 int mostRecentArgumentIndex = -1;
                 String mostRecentLabel = null;
 
-                Token predicate = featureTokens.get(1);
+                Token predicate = featureTokens.get(PREDICATE);
                 for (Map.Entry<Token, String> pair : frameSet.argumentsOf(predicate).entrySet()) {
                     int currIndex = pair.getKey().sentenceIndex;
                     if (currIndex > mostRecentArgumentIndex) {
@@ -140,6 +145,7 @@ public class ExtensibleOnlineFeatureGenerator extends ArgumentFeatureGenerator {
                 else
                     return Collections.singletonList("previousArgClass:" + mostRecentLabel);
             }
+
         });
     }
 

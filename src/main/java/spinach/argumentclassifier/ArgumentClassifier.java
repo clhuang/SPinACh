@@ -256,4 +256,8 @@ public abstract class ArgumentClassifier {
     public void reset() {
         classifier.reset();
     }
+
+    public int numFeatures() {
+        return classifier.numFeatures();
+    }
 }
