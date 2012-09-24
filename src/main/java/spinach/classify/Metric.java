@@ -1,10 +1,12 @@
 package spinach.classify;
 
+import com.google.common.collect.Sets;
 import edu.stanford.nlp.stats.ClassicCounter;
 import edu.stanford.nlp.stats.Counter;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -20,16 +22,16 @@ public class Metric {
 
     public final static String TOTAL = "TOTAL";
 
-    private int correctPredicateNum = 0;
-    private int goldPredicateNum = 0;
-    private int predictedPredicateNum = 0;
+    private int correctPredicateNum;
+    private int goldPredicateNum;
+    private int predictedPredicateNum;
 
     private Counter<String> correctArguments = new ClassicCounter<String>();
     private Counter<String> predictedArguments = new ClassicCounter<String>();
     private Counter<String> goldArguments = new ClassicCounter<String>();
 
-    private Collection<SemanticFrameSet> goldFrameSets;
-    private GEN gen;
+    private final Collection<SemanticFrameSet> goldFrameSets;
+    private final GEN gen;
 
     /**
      * Generates a metric from a classifier and a bunch of known good SemanticFrameSets
@@ -38,7 +40,7 @@ public class Metric {
      * @param goldFrameSets gold SemanticFrameSets to compare GEN output against
      */
     public Metric(GEN g, Collection<SemanticFrameSet> goldFrameSets) {
-        this.gen = g;
+        gen = g;
         this.goldFrameSets = goldFrameSets;
         recalculateScores();
     }
@@ -47,20 +49,30 @@ public class Metric {
      * Recalculates the scores if the GEN has been modified
      */
     public void recalculateScores() {
+        correctPredicateNum = 0;
+        goldPredicateNum = 0;
+        predictedPredicateNum = 0;
+
+        correctArguments = new ClassicCounter<String>();
+        predictedArguments = new ClassicCounter<String>();
+        goldArguments = new ClassicCounter<String>();
+
         for (SemanticFrameSet goldFrameSet : goldFrameSets) {
             SemanticFrameSet predictedFrameSet = gen.parse(goldFrameSet);
 
             List<Token> goldPredicates = goldFrameSet.getPredicateList();
             List<Token> predictedPredicates = predictedFrameSet.getPredicateList();
+            List<Token> goldAndPredictedPredicates = new ArrayList<Token>();
+
+            for (Token goldPredicate : goldPredicates)
+                if (predictedPredicates.contains(goldPredicate))
+                    goldAndPredictedPredicates.add(goldPredicate);
+
+            predictedPredicateNum += predictedPredicates.size();
+            goldPredicateNum += goldPredicates.size();
+            correctPredicateNum += goldAndPredictedPredicates.size();
+
             for (Token predictedPredicate : predictedPredicates) {
-                predictedPredicateNum++;
-                if (goldPredicates.contains(predictedPredicate)) {
-                    correctPredicateNum++;
-                    for (Map.Entry<Token, String> entry : goldFrameSet.argumentsOf(predictedPredicate).entrySet()) {
-                        correctArguments.incrementCount(entry.getValue());
-                        correctArguments.incrementCount(TOTAL);
-                    }
-                }
                 for (Map.Entry<Token, String> entry : predictedFrameSet.argumentsOf(predictedPredicate).entrySet()) {
                     predictedArguments.incrementCount(entry.getValue());
                     predictedArguments.incrementCount(TOTAL);
@@ -68,10 +80,18 @@ public class Metric {
             }
 
             for (Token goldPredicate : goldPredicates) {
-                goldPredicateNum++;
                 for (Map.Entry<Token, String> entry : goldFrameSet.argumentsOf(goldPredicate).entrySet()) {
                     goldArguments.incrementCount(entry.getValue());
                     goldArguments.incrementCount(TOTAL);
+                }
+            }
+
+            for (Token goldAndPredictedPredicate : goldAndPredictedPredicates) {
+                for (Map.Entry<Token, String> correctEntry :
+                        Sets.intersection(goldFrameSet.argumentsOf(goldAndPredictedPredicate).entrySet(),
+                                predictedFrameSet.argumentsOf(goldAndPredictedPredicate).entrySet())) {
+                    correctArguments.incrementCount(correctEntry.getValue());
+                    correctArguments.incrementCount(TOTAL);
                 }
             }
         }

@@ -4,17 +4,17 @@ import edu.stanford.nlp.classify.Dataset;
 import edu.stanford.nlp.ling.Datum;
 import edu.stanford.nlp.stats.ClassicCounter;
 import edu.stanford.nlp.stats.Counter;
-import edu.stanford.nlp.util.ErasureUtils;
 import edu.stanford.nlp.util.HashIndex;
 import edu.stanford.nlp.util.Index;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 
 /**
  * A classifier based on a multiclass perceptron.
@@ -26,47 +26,75 @@ public class PerceptronClassifier implements Classifier, Serializable {
     private static final long serialVersionUID = 1L;
     private static final double ARRAY_INCREMENT_FACTOR = 2;
 
-    public static final String PREDICTED_LABEL_PREFIX = "predictedLabel:";
-    public static final String GOLD_LABEL_PREFIX = "goldLabel:";
-
-    /*
-    Each unique feature is assigned a number, as defined in the index.
-    LabelWeights, for each label, provides a vector that when, multiplied
-    by the feature vector for a datum, returns the score for that datum.
+    /**
+     * Each unique feature is assigned a number, as defined in the index.
+     * LabelWeights, for each label, provides a vector that when, multiplied
+     * by the feature vector for a datum, returns the score for that datum.
      */
-    class LabelWeights implements Serializable {
+    private class LabelWeights implements Serializable {
         private static final long serialVersionUID = 1L;
         private static final int MIN_NUM_FEATURES = 50000;
-        double[] weights;
-        int survivalIterations;
-        double[] avgWeights;
+
+        /*
+        An array of doubles provides the weight for each feature.
+        A weighted average of the weights provides a weight used during actual classification.
+         */
+        private transient double[] weights;
+        private transient double[] avgWeights;
+
+        /*
+        This keeps track of the number of iterations it has been updated.
+        lastUpdateIteration keeps track of the last time the weight for a particular feature
+        has been changed, and is used when calculating the average weight for that feature.
+         */
+        private transient int currentIteration;
+        private transient int[] lastUpdateIteration;
 
         private final String label;
-
-        LabelWeights(String label) {
-            this(0, label);
-        }
 
         LabelWeights(int numFeatures, String label) {
             if (numFeatures < MIN_NUM_FEATURES)
                 numFeatures = MIN_NUM_FEATURES;
             weights = new double[numFeatures];
             avgWeights = new double[numFeatures];
-            survivalIterations = 0;
+
+            /*
+            Iteration number is 1-indexed. A 0 in lastUpdateIteration means it hasn't been previously updated.
+             */
+            lastUpdateIteration = new int[numFeatures];
+            currentIteration = 1;
+
             this.label = label;
         }
 
-        void incrementSurvivalIterations() {
-            survivalIterations++;
+        void incrementCurrentIteration() {
+            currentIteration++;
         }
 
-        void updateAverage() {
-            if (survivalIterations == 0)
-                return;
+        void updateAverage(Set<Integer> exampleFeatureIndices) {
+            for (int i : exampleFeatureIndices) {
+                updateAverageForIndex(i);
+            }
+        }
 
-            for (int i = 0; i < Math.min(PerceptronClassifier.this.numFeatures(), weights.length); i++)
-                avgWeights[i] += weights[i] * survivalIterations;
-            survivalIterations = 0;
+        void updateAllAverage() {
+            for (int i = 0; i < weights.length; i++)
+                updateAverageForIndex(i);
+        }
+
+        void updateAverageForIndex(int i) {
+            ensureCapacity(i);
+            if (lastUpdateIteration[i] == 0)
+                lastUpdateIteration[i] = currentIteration;
+            else {
+                avgWeights[i] += weights[i] * (currentIteration - lastUpdateIteration[i]);
+                lastUpdateIteration[i] = currentIteration;
+            }
+        }
+
+        private void ensureCapacity(int index) {
+            if (index >= weights.length)
+                expand();
         }
 
         /**
@@ -74,49 +102,70 @@ public class PerceptronClassifier implements Classifier, Serializable {
          */
         private void expand() {
             int newLength = Math.max((int) Math.ceil(weights.length * ARRAY_INCREMENT_FACTOR),
-                    PerceptronClassifier.this.numFeatures());
-            System.out.println("EXPAND " + label);
+                    featureIndex.size());
             weights = Arrays.copyOf(weights, newLength);
             avgWeights = Arrays.copyOf(avgWeights, newLength);
+            lastUpdateIteration = Arrays.copyOf(lastUpdateIteration, newLength);
         }
 
         void update(Set<Integer> exampleFeatureIndices, double weight) {
-            updateAverage();
+            updateAverage(exampleFeatureIndices);
 
-            for (int d : exampleFeatureIndices) {
-                while (d >= weights.length)
-                    expand();
-                weights[d] += weight;
+            for (int i : exampleFeatureIndices) {
+                ensureCapacity(i);
+                weights[i] += weight;
             }
         }
 
         double trainingDotProduct(Set<Integer> featureCounts) {
             double dotProd = 0;
-            for (int i : featureCounts) {
-                while (i >= weights.length)
-                    expand();
-                dotProd += weights[i];
-            }
+            for (int i : featureCounts)
+                if (i < weights.length)
+                    dotProd += weights[i];
             return dotProd;
         }
 
         double avgDotProduct(Set<Integer> featureCounts) {
             double dotProd = 0;
-            for (int i : featureCounts) {
-                while (i > avgWeights.length)
-                    expand();
-                dotProd += avgWeights[i];
-            }
+            for (int i : featureCounts)
+                if (i < avgWeights.length)
+                    dotProd += avgWeights[i];
             return dotProd;
+        }
+
+        private void writeObject(ObjectOutputStream oos) throws IOException {
+            oos.defaultWriteObject();
+            oos.writeInt(weights.length);
+            for (int i = 0; i < weights.length; i++) {
+                oos.writeDouble(weights[i]);
+                oos.writeDouble(avgWeights[i]);
+            }
+        }
+
+        private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+            ois.defaultReadObject();
+            int length = ois.readInt();
+
+            currentIteration = 1;
+            weights = new double[length];
+            avgWeights = new double[length];
+            lastUpdateIteration = new int[length];
+
+            for (int i = 0; i < length; i++) {
+                weights[i] = ois.readDouble();
+                avgWeights[i] = ois.readDouble();
+                lastUpdateIteration[i] = 1;
+            }
+
         }
     }
 
-    ArrayList<LabelWeights> zWeights = new ArrayList<LabelWeights>();
+    private ArrayList<LabelWeights> zWeights = new ArrayList<LabelWeights>();
 
-    public Index<String> labelIndex = new HashIndex<String>();
-    public Index<String> featureIndex = new HashIndex<String>();
+    private Index<String> labelIndex = new HashIndex<String>();
+    private Index<String> featureIndex = new HashIndex<String>();
 
-    final int epochs;
+    private final int epochs;
 
     /**
      * Creates a perceptron classifier
@@ -128,6 +177,17 @@ public class PerceptronClassifier implements Classifier, Serializable {
     }
 
     /**
+     * Creates a perceptron classifier
+     *
+     * @param initialFeatureSet set of features to start with
+     * @param epochs            number of times to iterate over dataset
+     */
+    public PerceptronClassifier(Set<String> initialFeatureSet, int epochs) {
+        this(epochs);
+        featureIndex.addAll(initialFeatureSet);
+    }
+
+    /**
      * Creates a perceptron classifier that iterates over the data set 10 times
      */
     public PerceptronClassifier() {
@@ -135,69 +195,11 @@ public class PerceptronClassifier implements Classifier, Serializable {
     }
 
     /**
-     * Saves the classifier as a gzipped file
-     *
-     * @param modelPath location to save to
-     */
-    public void save(String modelPath) {
-        try {
-            ObjectOutputStream out = new ObjectOutputStream(new BufferedOutputStream(
-                    new GZIPOutputStream(new FileOutputStream(modelPath))));
-
-            assert (zWeights != null);
-            out.writeInt(zWeights.size());
-            for (LabelWeights zw : zWeights) {
-                out.writeObject(zw);
-            }
-
-            out.writeObject(labelIndex);
-            out.writeObject(featureIndex);
-
-            out.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    /*
-    Loads a classifier from an object stream
-     */
-    private void load(ObjectInputStream in) throws IOException, ClassNotFoundException {
-        int length = in.readInt();
-        zWeights = new ArrayList<LabelWeights>(length);
-        for (int i = 0; i < length; i++) {
-            LabelWeights l = ErasureUtils.uncheckedCast(in.readObject());
-            zWeights.add(l);
-        }
-
-        labelIndex = ErasureUtils.uncheckedCast(in.readObject());
-        featureIndex = ErasureUtils.uncheckedCast(in.readObject());
-    }
-
-    /**
-     * Reads a classifier from a gzip
-     *
-     * @param modelPath path leading to zipped file
-     * @return classifier saved in file
-     * @throws ClassNotFoundException
-     * @throws IOException
-     */
-    public static PerceptronClassifier load(String modelPath) throws ClassNotFoundException, IOException {
-        GZIPInputStream is = new GZIPInputStream(new FileInputStream(modelPath));
-
-        ObjectInputStream in = new ObjectInputStream(is);
-        PerceptronClassifier ex = new PerceptronClassifier();
-        ex.load(in);
-        in.close();
-        is.close();
-        return ex;
-    }
-
-    /**
      * Trains a new classifier based on a dataset
      *
      * @param dataset to be trained on
      */
+    @Override
     public void train(Dataset<String, String> dataset) {
         labelIndex = dataset.labelIndex();
         featureIndex = dataset.featureIndex();
@@ -233,58 +235,73 @@ public class PerceptronClassifier implements Classifier, Serializable {
             System.out.println("Correct: " + correct + "/" + dataset.size());
 
         }
+
+        updateAverageWeights();
     }
 
     /**
-     * Trains the classifier based on a dataset with gold/predicted labels for each datum
-     * For use with online learning
+     * Trains the classifier based on a dataset with gold/predicted labels for each datum.
+     * For use with online learning. Since data in datasets can only contain one label,
+     * that label must contain both the predicted and the gold labels.
      *
-     * @param goldAndPredictedDataset dataset w/ two labels: a gold label, and a predicted label
+     * @param goldAndPredictedDataset dataset w/ datum with labels formatted by formatManualTrainingLabel()
      */
     public void manualTrain(Dataset<String, String> goldAndPredictedDataset) {
 
-        for (Datum<String, String> d : goldAndPredictedDataset) {
+        for (Datum<String, String> d : goldAndPredictedDataset)
             manualTrain(d);
-        }
     }
 
-    /*
+    private static final char SPACER = Character.LINE_SEPARATOR;
+
+    /**
      * Trains on a single datum with two labels--predicted and gold label
-     * Predicted label is string: "predictedLabel:[label]"
-     * Gold label is string: "goldLabel:[label]"
+     * Label must be formatted with formatManualTrainingLabel()
+     *
+     * @param datum datum to train with properly formatted dual label
      */
     private void manualTrain(Datum<String, String> datum) {
 
-        String predictedLabel = null;
-        String goldLabel = null;
+        String unformattedLabel = datum.label();
+        int separatorPos = unformattedLabel.indexOf(SPACER);
 
-        for (String s : datum.labels()) {
-            if (s.startsWith(PREDICTED_LABEL_PREFIX))
-                predictedLabel = s.substring(PREDICTED_LABEL_PREFIX.length());
-            else if (s.startsWith(GOLD_LABEL_PREFIX))
-                goldLabel = s.substring(GOLD_LABEL_PREFIX.length());
-        }
+        if (separatorPos < 0)
+            throw new IllegalArgumentException("Label is not formatted properly for manual train");
+
+        String predictedLabel = unformattedLabel.substring(0, separatorPos);
+        String goldLabel = unformattedLabel.substring(separatorPos + 1);
 
         train(featuresOf(datum), goldLabel, predictedLabel);
     }
 
+    /**
+     * In order to use the manual training functions (where the predicted label has already been determined)
+     * the two labels must be formatted to be one label to be put in a datum in a dataset.
+     *
+     * @param predictedLabel the predicted label
+     * @param goldLabel      the gold label
+     * @return the two combined labels, in the correct format for manual training
+     */
+    public static String formatManualTrainingLabel(String predictedLabel, String goldLabel) {
+        return predictedLabel + SPACER + goldLabel;
+    }
+
     private void train(Set<Integer> featureIndices, String goldLabel, String predictedLabel) {
 
-        int predictedArgIndex = labelIndex.indexOf(predictedLabel);
-        int goldArgIndex = labelIndex.indexOf(goldLabel, true);
+        int predictedLabelIndex = labelIndex.indexOf(predictedLabel);
+        int goldLabelIndex = labelIndex.indexOf(goldLabel, true);
 
-        if (goldArgIndex >= zWeights.size())
+        if (goldLabelIndex >= zWeights.size())
             zWeights.add(new LabelWeights(featureIndex.size(), goldLabel));
 
         if (predictedLabel == null || !predictedLabel.equals(goldLabel)) {
-            if (predictedArgIndex >= 0)
-                zWeights.get(predictedArgIndex).update(featureIndices, -1.0);
-            zWeights.get(goldArgIndex).update(featureIndices, 1.0);
+            if (predictedLabelIndex >= 0)
+                zWeights.get(predictedLabelIndex).update(featureIndices, -1.0);
+            zWeights.get(goldLabelIndex).update(featureIndices, 1.0);
         }
 
         for (LabelWeights zw : zWeights)
-            zw.incrementSurvivalIterations();
-
+            zw.incrementCurrentIteration();
     }
 
     private void train(Datum<String, String> datum) {
@@ -329,17 +346,15 @@ public class PerceptronClassifier implements Classifier, Serializable {
 
     private String argMaxAverageDotProduct(Set<Integer> exampleFeatureIndices) {
         double maxDotProduct = Double.NEGATIVE_INFINITY;
-        int argMax = -1;
-        for (int i = 0; i < zWeights.size(); i++) {
-            LabelWeights l = zWeights.get(i);
-            l.updateAverage();
+        String argMax = null;
+        for (LabelWeights l : zWeights) {
             double dotProduct = l.avgDotProduct(exampleFeatureIndices);
             if (dotProduct > maxDotProduct) {
                 maxDotProduct = dotProduct;
-                argMax = i;
+                argMax = l.label;
             }
         }
-        return labelIndex.get(argMax);
+        return argMax;
     }
 
     /**
@@ -348,14 +363,13 @@ public class PerceptronClassifier implements Classifier, Serializable {
      * @param datum datum to be examined
      * @return Counter with scores of each label
      */
+    @Override
     public Counter<String> scoresOf(Datum<String, String> datum) {
         Counter<String> scores = new ClassicCounter<String>();
         Set<Integer> featureCounts = featuresOf(datum);
-        for (int i = 0; i < labelIndex.size(); i++) {
-            LabelWeights l = zWeights.get(i);
-            scores.incrementCount(labelIndex.get(i),
+        for (LabelWeights l : zWeights)
+            scores.incrementCount(l.label,
                     l.avgDotProduct(featureCounts));
-        }
         return scores;
     }
 
@@ -380,6 +394,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
      * @param datum datum to be examined
      * @return label with highest score
      */
+    @Override
     public String classOf(Datum<String, String> datum) {
         return argMaxAverageDotProduct(featuresOf(datum));
     }
@@ -396,21 +411,17 @@ public class PerceptronClassifier implements Classifier, Serializable {
     }
 
     /**
-     * Clears the weights, the label index, and the feature index.
+     * Clears the weights
      */
     public void reset() {
         zWeights.clear();
-
-        labelIndex.clear();
-        featureIndex.clear();
     }
 
     /**
-     * Returns the number of features this classifier has indexed
-     *
-     * @return the size of the feature index
+     * Updates all the average weights for accurate results when classifying.
      */
-    public int numFeatures() {
-        return featureIndex.size();
+    public void updateAverageWeights() {
+        for (LabelWeights l : zWeights)
+            l.updateAllAverage();
     }
 }

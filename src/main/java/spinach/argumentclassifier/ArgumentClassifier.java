@@ -4,13 +4,14 @@ import edu.stanford.nlp.classify.Dataset;
 import edu.stanford.nlp.ling.BasicDatum;
 import edu.stanford.nlp.stats.Counter;
 import spinach.argumentclassifier.featuregen.ArgumentFeatureGenerator;
-import spinach.argumentclassifier.featuregen.ExtensibleOnlineFeatureGenerator;
+import spinach.argumentclassifier.featuregen.ExtensibleFeatureGenerator;
 import spinach.classifier.PerceptronClassifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 import spinach.sentence.TokenSentence;
 import spinach.sentence.TokenSentenceAndPredicates;
 
+import java.io.Serializable;
 import java.util.*;
 
 /**
@@ -20,10 +21,12 @@ import java.util.*;
  *
  * @author Calvin Huang
  */
-public abstract class ArgumentClassifier {
+public abstract class ArgumentClassifier implements Serializable {
 
-    protected final PerceptronClassifier classifier;
-    protected final ArgumentFeatureGenerator featureGenerator;
+    private final long serialVersionUID = 1588431885484497674L;
+
+    private final PerceptronClassifier classifier;
+    private final ArgumentFeatureGenerator featureGenerator;
 
     public final static String NIL_LABEL = "NIL";
 
@@ -33,7 +36,7 @@ public abstract class ArgumentClassifier {
      * @param classifier       a Perceptron classifier that this ArgumentClassifier is based upon
      * @param featureGenerator that generates features for each input
      */
-    public ArgumentClassifier(PerceptronClassifier classifier, ArgumentFeatureGenerator featureGenerator) {
+    protected ArgumentClassifier(PerceptronClassifier classifier, ArgumentFeatureGenerator featureGenerator) {
         this.classifier = classifier;
         this.featureGenerator = featureGenerator;
     }
@@ -75,6 +78,7 @@ public abstract class ArgumentClassifier {
         }
 
         Collections.sort(argumentCandidates, new Comparator<Token>() {
+            @Override
             public int compare(Token t1, Token t2) {
                 return new Integer(t1.sentenceIndex).
                         compareTo(t2.sentenceIndex);
@@ -92,7 +96,7 @@ public abstract class ArgumentClassifier {
      * @param predicate   predicate in that sentence
      * @return scores of the possible labels of that predicate-argument pair
      */
-    public Counter<String> argClassScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate) {
+    protected Counter<String> argClassScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate) {
         return classifier.scoresOf(featureGenerator.datumFrom(frameSet, possibleArg, predicate));
     }
 
@@ -105,13 +109,14 @@ public abstract class ArgumentClassifier {
      * @param predicate   predicate in that sentence
      * @return scores of the possible labels of that predicate-argument pair
      */
-    public Counter<String> trainingArgClassScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate) {
+    protected Counter<String> trainingArgClassScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate) {
         return classifier.trainingScores(featureGenerator.datumFrom(frameSet, possibleArg, predicate));
     }
 
-    protected static List<String> sortArgLabels(Counter<String> argCounter) {
+    static List<String> sortArgLabels(Counter<String> argCounter) {
         List<Map.Entry<String, Double>> list = new LinkedList<Map.Entry<String, Double>>(argCounter.entrySet());
         Collections.sort(list, new Comparator<Map.Entry<String, Double>>() {
+            @Override
             public int compare(Map.Entry<String, Double> o1, Map.Entry<String, Double> o2) {
                 return (o2.getValue())
                         .compareTo(o1.getValue());
@@ -129,7 +134,7 @@ public abstract class ArgumentClassifier {
      * @param frameSet frameset to analyze
      * @return Dataset with features generated from the frameset
      */
-    public Dataset<String, String> datasetFrom(SemanticFrameSet frameSet) {
+    private Dataset<String, String> datasetFrom(SemanticFrameSet frameSet) {
         Dataset<String, String> dataset = new Dataset<String, String>();
         for (Token predicate : frameSet.getPredicateList()) {
             for (Token argument : argumentCandidates(frameSet, predicate)) {
@@ -185,21 +190,16 @@ public abstract class ArgumentClassifier {
                     String goldLabel = goldArguments.get(t);
                     String predictedLabel = predictedArguments.get(t);
 
-                    if (goldLabel == null || goldLabel.equals(NIL_LABEL))
-                        goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + NIL_LABEL;
-                    else
-                        goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + goldLabel;
+                    if (goldLabel == null)
+                        goldLabel = NIL_LABEL;
 
-                    if (predictedLabel == null || predictedLabel.equals(NIL_LABEL))
-                        predictedLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + NIL_LABEL;
-                    else
-                        predictedLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + predictedLabel;
+                    if (predictedLabel == null)
+                        predictedLabel = NIL_LABEL;
 
                     BasicDatum<String, String> datum =
                             (BasicDatum<String, String>) featureGenerator.datumFrom(predictedFrame, t, predicate);
 
-                    datum.addLabel(goldLabel);
-                    datum.addLabel(predictedLabel);
+                    datum.setLabel(PerceptronClassifier.formatManualTrainingLabel(predictedLabel, goldLabel));
 
                     dataset.add(datum);
 
@@ -210,18 +210,15 @@ public abstract class ArgumentClassifier {
 
                 for (Token t : argumentCandidates(predictedFrame, predicate)) {
                     String goldLabel = goldArguments.get(t);
-                    String predictedLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + NIL_LABEL;
+                    String predictedLabel = NIL_LABEL;
 
-                    if (goldLabel == null || goldLabel.equals(NIL_LABEL))
-                        goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + NIL_LABEL;
-                    else
-                        goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + goldLabel;
+                    if (goldLabel == null)
+                        goldLabel = NIL_LABEL;
 
                     BasicDatum<String, String> datum =
                             (BasicDatum<String, String>) featureGenerator.datumFrom(predictedFrame, t, predicate);
 
-                    datum.addLabel(goldLabel);
-                    datum.addLabel(predictedLabel);
+                    datum.setLabel(PerceptronClassifier.formatManualTrainingLabel(predictedLabel, goldLabel));
 
                     dataset.add(datum);
                 }
@@ -247,7 +244,7 @@ public abstract class ArgumentClassifier {
      * @return whether or not feature generator can be trained
      */
     public boolean isFeatureTrainable() {
-        return featureGenerator instanceof ExtensibleOnlineFeatureGenerator;
+        return featureGenerator instanceof ExtensibleFeatureGenerator;
     }
 
     /**
@@ -257,7 +254,11 @@ public abstract class ArgumentClassifier {
         classifier.reset();
     }
 
-    public int numFeatures() {
-        return classifier.numFeatures();
+    /**
+     * Updates the average weights for the classifier. Must be done in order
+     * to perform classification.
+     */
+    public void updateAverageWeights() {
+        classifier.updateAverageWeights();
     }
 }

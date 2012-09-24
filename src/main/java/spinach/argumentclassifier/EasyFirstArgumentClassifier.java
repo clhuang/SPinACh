@@ -30,7 +30,7 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier {
         return framesWithArguments(sentenceAndPredicates, true);
     }
 
-    public SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates, boolean training) {
+    private SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates, boolean training) {
 
         SemanticFrameSet frameSet = new SemanticFrameSet(sentenceAndPredicates);
 

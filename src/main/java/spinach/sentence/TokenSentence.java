@@ -17,8 +17,8 @@ import java.util.*;
  */
 public class TokenSentence implements Iterable<Token> {
 
-    protected List<Token> sentenceTokens = new ArrayList<Token>();
-    protected ArrayListMultimap<Integer, Token> children = ArrayListMultimap.create();
+    List<Token> sentenceTokens = new ArrayList<Token>();
+    ArrayListMultimap<Integer, Token> children = ArrayListMultimap.create();
 
     /**
      * Find the token at some index in this sentence.
@@ -204,6 +204,7 @@ public class TokenSentence implements Iterable<Token> {
      *
      * @return iterator through sentence tokens
      */
+    @Override
     public Iterator<Token> iterator() {
         return sentenceTokens.iterator();
     }
@@ -249,11 +250,11 @@ public class TokenSentence implements Iterable<Token> {
         return "active";
     }
 
-    private static Set<String> beVerbForms = new ImmutableSet.Builder<String>().add(
+    private static final Set<String> beVerbForms = new ImmutableSet.Builder<String>().add(
             "be", "am", "is", "was", "are", "were", "been", "being"
     ).build();
 
-    private static Set<String> getVerbForms = new ImmutableSet.Builder<String>().add(
+    private static final Set<String> getVerbForms = new ImmutableSet.Builder<String>().add(
             "get", "got", "gotten", "getting", "geting", "gets"
     ).build();
 

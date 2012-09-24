@@ -3,15 +3,18 @@ package spinach.classify;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import spinach.argumentclassifier.ArgumentClassifier;
-import spinach.argumentclassifier.featuregen.ExtensibleOnlineFeatureGenerator;
+import spinach.argumentclassifier.featuregen.ExtensibleFeatureGenerator;
 import spinach.argumentclassifier.featuregen.IndividualFeatureGenerator;
 import spinach.predicateclassifier.PredicateClassifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.TokenSentence;
 import spinach.sentence.TokenSentenceAndPredicates;
 
+import java.io.*;
 import java.text.DateFormat;
 import java.util.*;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * A class that does the entire task for a sentence--
@@ -25,14 +28,14 @@ public class StructuredClassifier implements GEN {
     private final PredicateClassifier predicateClassifier;
     private final int epochs;
 
-    private ExtensibleOnlineFeatureGenerator featureGenerator;
+    private transient ExtensibleFeatureGenerator featureGenerator;
 
-    private Collection<SemanticFrameSet> trainingFrames;
-    private Collection<SemanticFrameSet> testingFrames;
+    private transient Collection<SemanticFrameSet> trainingFrames;
+    private transient Collection<SemanticFrameSet> testingFrames;
 
-    public static final int TRAIN_ALL = 0;
-    public static final int TRAIN_PREDICATE_C = 1;
-    public static final int TRAIN_ARGUMENT_C = 2;
+    private static final int TRAIN_ALL = 0;
+    private static final int TRAIN_PREDICATE_C = 1;
+    private static final int TRAIN_ARGUMENT_C = 2;
     private transient int trainingMode;
 
     /**
@@ -68,6 +71,7 @@ public class StructuredClassifier implements GEN {
      * @param sentence sentence to analyze
      * @return SemanticFrameSet with the original sentence, along with predicates and arguments
      */
+    @Override
     public SemanticFrameSet parse(TokenSentence sentence) {
 
         TokenSentenceAndPredicates sentenceAndPredicates =
@@ -103,25 +107,42 @@ public class StructuredClassifier implements GEN {
         setTrainingFrames(goldFrames);
         trainingMode = TRAIN_ALL;
         train();
+
+        argumentClassifier.updateAverageWeights();
+        predicateClassifier.updateAverageWeights();
     }
 
+    /**
+     * Trains only the argument classifier on a collection of known SemanticFrameSets.
+     *
+     * @param goldFrames SemanticFrameSets with known good semantic data
+     */
     public void trainArgumentClassifier(Collection<SemanticFrameSet> goldFrames) {
         setTrainingFrames(goldFrames);
         trainingMode = TRAIN_ARGUMENT_C;
         train();
+
+        argumentClassifier.updateAverageWeights();
     }
 
+    /**
+     * Trains only the predicate classifier on a collection of known SemanticFrameSets.
+     *
+     * @param goldFrames SemanticFrameSets with known good semantic data
+     */
     public void trainPredicateClassifier(Collection<SemanticFrameSet> goldFrames) {
         setTrainingFrames(goldFrames);
         trainingMode = TRAIN_PREDICATE_C;
         train();
+
+        predicateClassifier.updateAverageWeights();
     }
 
     private void train() {
         DateFormat df = DateFormat.getDateTimeInstance();
         for (int i = 0; i < epochs; i++) {
             System.out.println();
-            System.out.println("Begin training epoch " + i + " of " + epochs);
+            System.out.println("Begin training epoch " + (i + 1) + " of " + epochs);
 
             List<SemanticFrameSet> goldFramesCopy = new ArrayList<SemanticFrameSet>(trainingFrames);
 
@@ -131,7 +152,7 @@ public class StructuredClassifier implements GEN {
             for (SemanticFrameSet goldFrame : goldFramesCopy) {
                 j++;
                 train(goldFrame);
-                if (j % 1000 == 0) {
+                if (j % 5000 == 0) {
                     Date date = new Date();
                     System.out.println("Trained " + j + " sentences of " + trainingFrames.size() + " | " +
                             df.format(date));
@@ -168,7 +189,7 @@ public class StructuredClassifier implements GEN {
 
     }
 
-    public void setTrainingFrames(Collection<SemanticFrameSet> goldFrames) {
+    private void setTrainingFrames(Collection<SemanticFrameSet> goldFrames) {
         trainingFrames = goldFrames;
     }
 
@@ -185,7 +206,7 @@ public class StructuredClassifier implements GEN {
         this.testingFrames = testingFrames;
 
         if (argumentClassifier.isFeatureTrainable())
-            featureGenerator = (ExtensibleOnlineFeatureGenerator) argumentClassifier.getFeatureGenerator();
+            featureGenerator = (ExtensibleFeatureGenerator) argumentClassifier.getFeatureGenerator();
         else {
             System.err.println("Cannot train feature generator--is not a trainable feature generator");
             return;
@@ -194,12 +215,25 @@ public class StructuredClassifier implements GEN {
         featureGenerator.clearFeatures();
 
         Random random = new Random();
-        for (IndividualFeatureGenerator i : featureGenerator.featureGeneratorSet())    //random subset of features
-            if (random.nextBoolean())
-                featureGenerator.enableFeatureType(i);
+
+        int numFeaturesToAdd = featureGenerator.featureGeneratorSet().size();
+        int visited = 0;
+        HashSet<IndividualFeatureGenerator> enabledFeatures = new HashSet<IndividualFeatureGenerator>();
+
+        Iterator<IndividualFeatureGenerator> it = featureGenerator.featureGeneratorSet().iterator();
+        while (numFeaturesToAdd > 0) {
+            IndividualFeatureGenerator item = it.next();
+            if (random.nextDouble() < ((double) numFeaturesToAdd) /
+                    (featureGenerator.featureGeneratorSet().size() - visited)) {
+                enabledFeatures.add(item);
+                numFeaturesToAdd--;
+            }
+            visited++;
+        }
+        featureGenerator.setEnabledFeatureGenerators(enabledFeatures);
+
 
         Set<IndividualFeatureGenerator> featureGeneratorSet = featureGenerator.enabledFeatures();
-
         while (true) {
             Set<IndividualFeatureGenerator> additions = recruitMore(featureGeneratorSet);
             if (additions.isEmpty())
@@ -218,7 +252,7 @@ public class StructuredClassifier implements GEN {
     private double argumentTrainAndScore(Set<IndividualFeatureGenerator> featureGenerators) {
         argumentClassifier.reset();
         predicateClassifier.reset();
-        featureGenerator.setFeatureGenerators(featureGenerators);
+        featureGenerator.setEnabledFeatureGenerators(featureGenerators);
         train();
         return new Metric(this, testingFrames).argumentF1s().getCount(
                 Metric.TOTAL);
@@ -282,6 +316,7 @@ public class StructuredClassifier implements GEN {
 
     private static <K, V extends Comparable<V>> Map<K, V> invertedSortByValues(final Map<K, V> map) {
         Comparator<K> valueComparator = new Comparator<K>() {
+            @Override
             public int compare(K k1, K k2) {
                 int compare = map.get(k2).compareTo(map.get(k1));
                 if (compare == 0) return 1;
@@ -293,4 +328,87 @@ public class StructuredClassifier implements GEN {
         return new LinkedHashMap<K, V>(sortedByValues);
     }
 
+    /**
+     * Saves this classifier's argument classifier.
+     *
+     * @param filePath file to save classifier to
+     */
+    public void exportArgumentClassifier(String filePath) {
+        ObjectOutputStream out;
+
+        try {
+            out = new ObjectOutputStream(new BufferedOutputStream(
+                    new GZIPOutputStream(new FileOutputStream(filePath))));
+
+            out.writeObject(argumentClassifier);
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Loads an argument classifier.
+     *
+     * @param filePath file to load classifier from
+     * @return imported classifier
+     */
+    public static ArgumentClassifier importArgumentClassifier(String filePath) {
+        ObjectInputStream in;
+
+        try {
+            in = new ObjectInputStream(new BufferedInputStream(
+                    new GZIPInputStream(new FileInputStream(filePath))));
+
+            return (ArgumentClassifier) in.readObject();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    /**
+     * Saves this classifier's predicate classifier.
+     *
+     * @param filePath file to save classifier to
+     */
+    public void exportPredicateClassifier(String filePath) {
+        ObjectOutputStream out;
+
+        try {
+            out = new ObjectOutputStream(new BufferedOutputStream(
+                    new GZIPOutputStream(new FileOutputStream(filePath))));
+
+            out.writeObject(predicateClassifier);
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Loads a predicate classifier.
+     *
+     * @param filePath file to load classifier from
+     * @return imported classifier
+     */
+    public static PredicateClassifier importPredicateClassifier(String filePath) {
+        ObjectInputStream in;
+
+        try {
+            in = new ObjectInputStream(new BufferedInputStream(
+                    new GZIPInputStream(new FileInputStream(filePath))));
+
+            return (PredicateClassifier) in.readObject();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
 }

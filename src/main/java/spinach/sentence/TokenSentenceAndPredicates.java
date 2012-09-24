@@ -12,11 +12,19 @@ import java.util.List;
  * @author Calvin Huang
  */
 public class TokenSentenceAndPredicates extends TokenSentence {
-    protected List<Token> predicateList = new ArrayList<Token>();
+    List<Token> predicateList = new ArrayList<Token>();
 
-    public TokenSentenceAndPredicates() {
+    /**
+     * Creates an empty TokenSentenceAndPredicates.
+     */
+    TokenSentenceAndPredicates() {
     }
 
+    /**
+     * Creates a new TokenSentenceAndPredicates, using tokens from another TokenSentence.
+     *
+     * @param sentence sentence to copy tokens from
+     */
     public TokenSentenceAndPredicates(TokenSentence sentence) {
         sentenceTokens = sentence.sentenceTokens;
         children = sentence.children;

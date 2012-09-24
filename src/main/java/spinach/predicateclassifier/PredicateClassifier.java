@@ -8,6 +8,7 @@ import spinach.sentence.Token;
 import spinach.sentence.TokenSentence;
 import spinach.sentence.TokenSentenceAndPredicates;
 
+import java.io.Serializable;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -17,13 +18,15 @@ import java.util.Set;
  *
  * @author Calvin Huang
  */
-public class PredicateClassifier {
+public class PredicateClassifier implements Serializable {
 
-    protected final PerceptronClassifier classifier;
-    protected final PredicateFeatureGenerator featureGenerator;
+    private static final long serialVersionUID = -2949247669362202540L;
 
-    public final static String PREDICATE_LABEL = "predicate";
-    public final static String NOT_PREDICATE_LABEL = "not_predicate";
+    private final PerceptronClassifier classifier;
+    private final PredicateFeatureGenerator featureGenerator;
+
+    private final static String PREDICATE_LABEL = "predicate";
+    private final static String NOT_PREDICATE_LABEL = "not_predicate";
 
     /**
      * Makes a predicate classifier from a perceptron and a feature generator
@@ -34,6 +37,15 @@ public class PredicateClassifier {
     public PredicateClassifier(PerceptronClassifier classifier, PredicateFeatureGenerator featureGenerator) {
         this.classifier = classifier;
         this.featureGenerator = featureGenerator;
+    }
+
+    /**
+     * Returns this classifiers' feature generator.
+     *
+     * @return feature generator
+     */
+    public PredicateFeatureGenerator getFeatureGenerator() {
+        return featureGenerator;
     }
 
     /**
@@ -77,7 +89,7 @@ public class PredicateClassifier {
      * @param frameSet sentence to be analyzed
      * @return dataset with features of sentence
      */
-    public Dataset<String, String> datasetFrom(SemanticFrameSet frameSet) {
+    private Dataset<String, String> datasetFrom(SemanticFrameSet frameSet) {
         Dataset<String, String> dataset = new Dataset<String, String>();
         Set<Token> predicates = new HashSet<Token>(frameSet.getPredicateList());
         for (Token t : frameSet) {
@@ -119,24 +131,13 @@ public class PredicateClassifier {
 
         for (Token t : goldSentence) {
 
-            String goldLabel;
-            String predictedLabel;
-
-            if (goldSentence.isPredicate(t))
-                goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + PredicateClassifier.PREDICATE_LABEL;
-            else
-                goldLabel = PerceptronClassifier.GOLD_LABEL_PREFIX + PredicateClassifier.NOT_PREDICATE_LABEL;
-
-            if (predictedSentence.isPredicate(t))
-                predictedLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + PredicateClassifier.PREDICATE_LABEL;
-            else
-                predictedLabel = PerceptronClassifier.PREDICTED_LABEL_PREFIX + PredicateClassifier.NOT_PREDICATE_LABEL;
+            String goldLabel = goldSentence.isPredicate(t) ? PREDICATE_LABEL : NOT_PREDICATE_LABEL;
+            String predictedLabel = predictedSentence.isPredicate(t) ? PREDICATE_LABEL : NOT_PREDICATE_LABEL;
 
             BasicDatum<String, String> datum = (BasicDatum<String, String>)
                     featureGenerator.datumFrom(predictedSentence, t);
 
-            datum.addLabel(goldLabel);
-            datum.addLabel(predictedLabel);
+            datum.setLabel(PerceptronClassifier.formatManualTrainingLabel(predictedLabel, goldLabel));
 
             dataset.add(datum);
         }
@@ -152,4 +153,11 @@ public class PredicateClassifier {
         classifier.reset();
     }
 
+    /**
+     * Updates the average weights for this classifier, must be done to
+     * classify labels
+     */
+    public void updateAverageWeights() {
+        classifier.updateAverageWeights();
+    }
 }

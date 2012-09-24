@@ -6,8 +6,6 @@ import edu.stanford.nlp.classify.LinearClassifierFactory;
 import edu.stanford.nlp.ling.Datum;
 import edu.stanford.nlp.stats.Counter;
 
-import java.io.IOException;
-
 /**
  * Wrapper class for the Stanford LinearClassifier class to implement the Classifier interface
  *
@@ -21,18 +19,21 @@ public class StanfordLinearClassifier implements Classifier {
         linearClassifier = LinearClassifier.readClassifier(modelPath);
     }
 
+    @Override
     public Counter<String> scoresOf(Datum<String, String> datum) {
         return linearClassifier.scoresOf(datum);
     }
 
+    @Override
     public String classOf(Datum<String, String> datum) {
         return linearClassifier.classOf(datum);
     }
 
-    public void save(String modelPath) throws IOException {
+    public void save(String modelPath) {
         LinearClassifier.writeClassifier(linearClassifier, modelPath);
     }
 
+    @Override
     public void train(Dataset<String, String> dataset) {
         linearClassifier =
                 new LinearClassifierFactory<String, String>().trainClassifier(dataset);

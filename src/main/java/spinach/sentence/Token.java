@@ -31,28 +31,26 @@ public class Token {
     /**
      * Generates token for some word
      *
-     * @param form                 word form
-     * @param lemma                word lemma
-     * @param pos                  word part of speech
-     * @param semanticHeadRelation relation to this word's syntactic head (if applicable)
-     * @param headSentenceIndex    index of this word's syntactic head (-1 if none)
-     * @param sentenceIndex        index of this word in the sentence
+     * @param form                  word form
+     * @param lemma                 word lemma
+     * @param pos                   word part of speech
+     * @param syntacticHeadRelation relation to this word's syntactic head (if applicable)
+     * @param headSentenceIndex     index of this word's syntactic head (-1 if none)
+     * @param sentenceIndex         index of this word in the sentence
      */
     public Token(String form, String lemma,
-                 String pos, String semanticHeadRelation,
+                 String pos, String syntacticHeadRelation,
                  int headSentenceIndex, int sentenceIndex) {
 
         this.form = form;
         this.lemma = lemma;
         this.pos = pos;
-        this.syntacticHeadRelation = semanticHeadRelation;
+        this.syntacticHeadRelation = syntacticHeadRelation;
         this.headSentenceIndex = headSentenceIndex;
         this.sentenceIndex = sentenceIndex;
     }
 
     public boolean equals(Object o) {
-        if (o == null)
-            return false;
         if (o == this)
             return true;
         if (o.getClass() != getClass())

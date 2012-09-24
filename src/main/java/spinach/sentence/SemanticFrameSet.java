@@ -16,11 +16,19 @@ import java.util.Map;
  */
 public class SemanticFrameSet extends TokenSentenceAndPredicates {
 
-    private Map<Token, Map<Token, String>> relations = new HashMap<Token, Map<Token, String>>();
+    private final Map<Token, Map<Token, String>> relations = new HashMap<Token, Map<Token, String>>();
 
+    /**
+     * Creates an empty SemanticFrameSet.
+     */
     public SemanticFrameSet() {
     }
 
+    /**
+     * Creates a SemanticFrameSet using predicates and tokens from a TokenSentenceAndPredicates.
+     *
+     * @param sentenceAndPredicates sentence with predicates and token data
+     */
     public SemanticFrameSet(TokenSentenceAndPredicates sentenceAndPredicates) {
         super(sentenceAndPredicates);
         predicateList = sentenceAndPredicates.predicateList;

@@ -13,15 +13,24 @@ import java.util.Map;
  */
 public abstract class IndividualFeatureGenerator implements Serializable {
 
-    public IndividualFeatureGenerator(String identifier) {
+    /**
+     * Instantiates a new IndividualFeatureGenerator.
+     *
+     * @param identifier string that uniquely identifies this IndividualFeatureGenerator
+     */
+    protected IndividualFeatureGenerator(String identifier) {
         this.identifier = identifier;
     }
 
-
     abstract Collection<String> featuresOf(SemanticFrameSet frameSet, Map<String, Token> featureTokens);
 
-    String identifier;
+    private final String identifier;
 
+    /**
+     * Returns the identifier of this IndividualFeatureGenerator.
+     *
+     * @return identifier
+     */
     public String getIdentifier() {
         return identifier;
     }
@@ -33,7 +42,7 @@ public abstract class IndividualFeatureGenerator implements Serializable {
             return true;
 
         if (o instanceof IndividualFeatureGenerator)
-            if (this.identifier.equals(((IndividualFeatureGenerator) o).identifier))
+            if (identifier.equals(((IndividualFeatureGenerator) o).identifier))
                 return true;
 
         return false;
