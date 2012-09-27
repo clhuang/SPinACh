@@ -65,32 +65,42 @@ public class StructuredClassifier implements GEN {
         this(argumentClassifier, predicateClassifier, 10);
     }
 
-    /**
-     * Given a sentence, determines the predicates and arguments for that sentence
-     *
-     * @param sentence sentence to analyze
-     * @return SemanticFrameSet with the original sentence, along with predicates and arguments
-     */
     @Override
     public SemanticFrameSet parse(TokenSentence sentence) {
 
         TokenSentenceAndPredicates sentenceAndPredicates =
-                predicateClassifier.sentenceWithPredicates(sentence);
+                predParse(sentence);
 
-        return argumentClassifier.framesWithArguments(sentenceAndPredicates);
+        return argParse(sentenceAndPredicates);
 
     }
 
+    @Override
+    public SemanticFrameSet argParse(TokenSentenceAndPredicates sentence) {
+        return argumentClassifier.framesWithArguments(sentence);
+    }
+
+    @Override
+    public TokenSentenceAndPredicates predParse(TokenSentence sentence) {
+        return predicateClassifier.sentenceWithPredicates(sentence);
+    }
+
+    /**
+     * Performs a parse with training weights.
+     *
+     * @param sentence sentence to parse
+     * @return semantic frameset with predicted predicates and arguments
+     */
     private SemanticFrameSet trainingParse(TokenSentence sentence) {
 
         TokenSentenceAndPredicates sentenceAndPredicates =
-                predicateClassifier.trainingSentenceWithPredicates(sentence);
+                predicateTrainingParse(sentence);
 
-        return argumentClassifier.trainingFramesWithArguments(sentenceAndPredicates);
+        return argumentTrainingParse(sentenceAndPredicates);
 
     }
 
-    private SemanticFrameSet argumentTrainingParse(SemanticFrameSet sentence) {
+    private SemanticFrameSet argumentTrainingParse(TokenSentenceAndPredicates sentence) {
         return argumentClassifier.trainingFramesWithArguments(sentence);
     }
 
@@ -164,12 +174,11 @@ public class StructuredClassifier implements GEN {
     private void train(SemanticFrameSet goldFrame) {
 
         //when this is run, parse ignores the predicates and semantic data
-        SemanticFrameSet predictedFrame;
 
         switch (trainingMode) {
 
             case TRAIN_ALL:
-                predictedFrame = trainingParse(goldFrame);
+                SemanticFrameSet predictedFrame = trainingParse(goldFrame);
                 predictedFrame.trimPredicates();
 
                 predicateClassifier.update(predictedFrame, goldFrame);
@@ -186,7 +195,6 @@ public class StructuredClassifier implements GEN {
                 predicateClassifier.update(predictedPredicates, goldFrame);
                 break;
         }
-
     }
 
     private void setTrainingFrames(Collection<SemanticFrameSet> goldFrames) {

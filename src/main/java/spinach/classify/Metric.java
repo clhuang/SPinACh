@@ -22,6 +22,8 @@ public class Metric {
 
     public final static String TOTAL = "TOTAL";
 
+    public static final boolean PREDICTED_PRED_DURING_ARG_TESTING = false;
+
     private int correctPredicateNum;
     private int goldPredicateNum;
     private int predictedPredicateNum;
@@ -72,26 +74,48 @@ public class Metric {
             goldPredicateNum += goldPredicates.size();
             correctPredicateNum += goldAndPredictedPredicates.size();
 
-            for (Token predictedPredicate : predictedPredicates) {
-                for (Map.Entry<Token, String> entry : predictedFrameSet.argumentsOf(predictedPredicate).entrySet()) {
-                    predictedArguments.incrementCount(entry.getValue());
-                    predictedArguments.incrementCount(TOTAL);
-                }
-            }
 
-            for (Token goldPredicate : goldPredicates) {
-                for (Map.Entry<Token, String> entry : goldFrameSet.argumentsOf(goldPredicate).entrySet()) {
-                    goldArguments.incrementCount(entry.getValue());
-                    goldArguments.incrementCount(TOTAL);
-                }
-            }
+            if (PREDICTED_PRED_DURING_ARG_TESTING) {
+                for (Token predictedPredicate : predictedPredicates)
+                    for (Map.Entry<Token, String> entry : predictedFrameSet.argumentsOf(predictedPredicate).entrySet()) {
+                        predictedArguments.incrementCount(entry.getValue());
+                        predictedArguments.incrementCount(TOTAL);
+                    }
 
-            for (Token goldAndPredictedPredicate : goldAndPredictedPredicates) {
-                for (Map.Entry<Token, String> correctEntry :
-                        Sets.intersection(goldFrameSet.argumentsOf(goldAndPredictedPredicate).entrySet(),
-                                predictedFrameSet.argumentsOf(goldAndPredictedPredicate).entrySet())) {
-                    correctArguments.incrementCount(correctEntry.getValue());
-                    correctArguments.incrementCount(TOTAL);
+                for (Token goldPredicate : goldPredicates)
+                    for (Map.Entry<Token, String> entry : goldFrameSet.argumentsOf(goldPredicate).entrySet()) {
+                        goldArguments.incrementCount(entry.getValue());
+                        goldArguments.incrementCount(TOTAL);
+                    }
+
+                for (Token goldAndPredictedPredicate : goldAndPredictedPredicates)
+                    for (Map.Entry<Token, String> correctEntry :
+                            Sets.intersection(goldFrameSet.argumentsOf(goldAndPredictedPredicate).entrySet(),
+                                    predictedFrameSet.argumentsOf(goldAndPredictedPredicate).entrySet())) {
+                        correctArguments.incrementCount(correctEntry.getValue());
+                        correctArguments.incrementCount(TOTAL);
+                    }
+            } else {
+
+                SemanticFrameSet argPredictedFrameSet = gen.argParse(goldFrameSet);
+
+                for (Token goldPredicate : goldPredicates) {
+                    for (Map.Entry<Token, String> entry : goldFrameSet.argumentsOf(goldPredicate).entrySet()) {
+                        goldArguments.incrementCount(entry.getValue());
+                        goldArguments.incrementCount(TOTAL);
+                    }
+
+                    for (Map.Entry<Token, String> entry : argPredictedFrameSet.argumentsOf(goldPredicate).entrySet()) {
+                        predictedArguments.incrementCount(entry.getValue());
+                        predictedArguments.incrementCount(TOTAL);
+                    }
+
+                    for (Map.Entry<Token, String> correctEntry :
+                            Sets.intersection(goldFrameSet.argumentsOf(goldPredicate).entrySet(),
+                                    predictedFrameSet.argumentsOf(goldPredicate).entrySet())) {
+                        correctArguments.incrementCount(correctEntry.getValue());
+                        correctArguments.incrementCount(TOTAL);
+                    }
                 }
             }
         }
@@ -134,6 +158,33 @@ public class Metric {
         if (Double.isNaN(f1))
             return 0;
         return f1;
+    }
+
+    /**
+     * Num. of correctly predicted predicates.
+     *
+     * @return number of correctly predicted predicates
+     */
+    public int predicateCorrect() {
+        return correctPredicateNum;
+    }
+
+    /**
+     * Num. of predicted predicates.
+     *
+     * @return number of predicted predicates
+     */
+    public int predicatePredicted() {
+        return predictedPredicateNum;
+    }
+
+    /**
+     * Num. of gold predicates.
+     *
+     * @return number of predicates in the gold frame sets
+     */
+    public int predicateGold() {
+        return goldPredicateNum;
     }
 
     /**

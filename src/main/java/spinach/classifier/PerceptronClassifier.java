@@ -72,9 +72,8 @@ public class PerceptronClassifier implements Classifier, Serializable {
         }
 
         void updateAverage(Set<Integer> exampleFeatureIndices) {
-            for (int i : exampleFeatureIndices) {
+            for (int i : exampleFeatureIndices)
                 updateAverageForIndex(i);
-            }
         }
 
         void updateAllAverage() {
@@ -84,12 +83,9 @@ public class PerceptronClassifier implements Classifier, Serializable {
 
         void updateAverageForIndex(int i) {
             ensureCapacity(i);
-            if (lastUpdateIteration[i] == 0)
-                lastUpdateIteration[i] = currentIteration;
-            else {
+            if (lastUpdateIteration[i] != 0)
                 avgWeights[i] += weights[i] * (currentIteration - lastUpdateIteration[i]);
-                lastUpdateIteration[i] = currentIteration;
-            }
+            lastUpdateIteration[i] = currentIteration;
         }
 
         private void ensureCapacity(int index) {
@@ -101,8 +97,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
          * Increase array size to accommodate individual features
          */
         private void expand() {
-            int newLength = Math.max((int) Math.ceil(weights.length * ARRAY_INCREMENT_FACTOR),
-                    featureIndex.size());
+            int newLength = Math.max((int) Math.ceil(weights.length * ARRAY_INCREMENT_FACTOR), featureIndex.size());
             weights = Arrays.copyOf(weights, newLength);
             avgWeights = Arrays.copyOf(avgWeights, newLength);
             lastUpdateIteration = Arrays.copyOf(lastUpdateIteration, newLength);
@@ -188,13 +183,6 @@ public class PerceptronClassifier implements Classifier, Serializable {
     }
 
     /**
-     * Creates a perceptron classifier that iterates over the data set 10 times
-     */
-    public PerceptronClassifier() {
-        this(10);
-    }
-
-    /**
      * Trains a new classifier based on a dataset
      *
      * @param dataset to be trained on
@@ -218,8 +206,6 @@ public class PerceptronClassifier implements Classifier, Serializable {
             System.err.println();
             System.err.println("Epoch: " + (t + 1) + " of " + epochs);
 
-            int correct = 0;
-
             for (int i = 0; i < dataset.size(); i++) {
                 if (i % 500000 == 0) {
                     System.err.println("Datum: " + i + " of " + dataset.size());
@@ -227,13 +213,6 @@ public class PerceptronClassifier implements Classifier, Serializable {
                 }
                 train(dataset.getDatum(i));
             }
-
-            for (int i = 0; i < dataset.size(); i++) {
-                if (classOf(dataset.getDatum(i)).equals(dataset.getDatum(i).label()))
-                    correct++;
-            }
-            System.out.println("Correct: " + correct + "/" + dataset.size());
-
         }
 
         updateAverageWeights();
@@ -294,7 +273,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
         if (goldLabelIndex >= zWeights.size())
             zWeights.add(new LabelWeights(featureIndex.size(), goldLabel));
 
-        if (predictedLabel == null || !predictedLabel.equals(goldLabel)) {
+        if (!goldLabel.equals(predictedLabel)) {
             if (predictedLabelIndex >= 0)
                 zWeights.get(predictedLabelIndex).update(featureIndices, -1.0);
             zWeights.get(goldLabelIndex).update(featureIndices, 1.0);

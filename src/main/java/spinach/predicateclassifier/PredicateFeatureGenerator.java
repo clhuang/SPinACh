@@ -24,9 +24,9 @@ public class PredicateFeatureGenerator implements Serializable {
 
     private static final int WORD_SHAPER = WordShapeClassifier.WORDSHAPECHRIS2;
     private static final boolean CHILD_INDICES_IN_FEATURES = false;
-    private static final boolean CHILDREN_INDICES_FEATURE = false;
+    private static final boolean CHILDREN_INDICES_FEATURE = true;
 
-    private static final int FEATURE_COUNT_THRESHOLD = 5;
+    private static final int FEATURE_COUNT_THRESHOLD = 3;
 
     private transient Token prev2Token;
     private transient Token prevToken;
@@ -90,7 +90,7 @@ public class PredicateFeatureGenerator implements Serializable {
         if (allowedNonStructuralFeatures == null)
             return featuresOf(sentence, predicate);
 
-        Collection<String> features = new HashSet<String>();
+        Collection<String> features = new ArrayList<String>();
         for (String s : featuresOf(sentence, predicate))
             if (isStructuralFeature(s) || allowedNonStructuralFeatures.contains(s))
                 features.add(s);
@@ -104,17 +104,18 @@ public class PredicateFeatureGenerator implements Serializable {
 
     protected Collection<String> featuresOf(TokenSentenceAndPredicates sentence, Token predicate) {
 
-        Collection<String> features = new HashSet<String>();
+        Collection<String> features = new ArrayList<String>();
 
         centerToken(sentence, predicate);
 
         List<String> predicateLemmaFeatures = lemmaFeatures();
-        List<String> predicateFormFeatures = formFeatures();
+        List<String> predicatePOSFeatures = posFeatures();
 
         features.addAll(predicateLemmaFeatures);
-        features.addAll(predicateFormFeatures);
-        features.addAll(posFeatures());
+        features.addAll(formFeatures());
+        features.addAll(predicatePOSFeatures);
         features.addAll(wordShapeFeatures());
+
         List<Token> children = sentence.getChildren(predicate);
 
         //add number of children
@@ -123,27 +124,34 @@ public class PredicateFeatureGenerator implements Serializable {
         //add children features
         for (Token child : children) {
             int relativePosition = predicate.sentenceIndex - child.sentenceIndex;
+
             centerToken(sentence, child);
-            for (String s : lemmaFeatures()) {
+
+            List<String> childLemmaFeatures = lemmaFeatures();
+            List<String> childPOSFeatures = posFeatures();
+
+            //child lemma features
+            for (String s : childLemmaFeatures) {
                 features.add("c" + s);
                 if (CHILD_INDICES_IN_FEATURES)
                     features.add("c" + relativePosition + s);
             }
 
-            for (String s : formFeatures()) {
+            //child pos feature
+            for (String s : childPOSFeatures) {
                 features.add("c" + s);
                 if (CHILD_INDICES_IN_FEATURES)
                     features.add("c" + relativePosition + s);
             }
 
-            for (String s : posFeatures()) {
-                features.add("c" + s);
-                if (CHILD_INDICES_IN_FEATURES)
-                    features.add("c" + relativePosition + s);
-            }
+            //child syntactic relation
+            features.add("crel|" + child.syntacticHeadRelation);
+            if (CHILD_INDICES_IN_FEATURES)
+                features.add("crel|" + relativePosition + child.syntacticHeadRelation);
 
+            //concatenation of child, parent forms/pos features
             Iterator<String> parentIterator = predicateLemmaFeatures.iterator();
-            Iterator<String> childIterator = lemmaFeatures().iterator();
+            Iterator<String> childIterator = childLemmaFeatures.iterator();
             while (parentIterator.hasNext() && childIterator.hasNext()) {
                 String childString = childIterator.next();
                 String parentString = parentIterator.next();
@@ -156,8 +164,8 @@ public class PredicateFeatureGenerator implements Serializable {
                             parentString);
             }
 
-            parentIterator = predicateFormFeatures.iterator();
-            childIterator = formFeatures().iterator();
+            parentIterator = predicatePOSFeatures.iterator();
+            childIterator = childPOSFeatures.iterator();
             while (parentIterator.hasNext() && childIterator.hasNext()) {
                 String childString = childIterator.next();
                 String parentString = parentIterator.next();
@@ -169,14 +177,15 @@ public class PredicateFeatureGenerator implements Serializable {
                             childString + "||" +
                             parentString);
             }
+
 
         }
 
         if (CHILDREN_INDICES_FEATURE) {
-            StringBuilder s = new StringBuilder("chdif|");
+            StringBuilder s = new StringBuilder("cdif|");
             for (Token child : sentence.getChildren(predicate)) {
                 s.append(predicate.sentenceIndex - child.sentenceIndex);
-                s.append(" ");
+                s.append(' ');
             }
             features.add(s.toString());
 
@@ -191,15 +200,15 @@ public class PredicateFeatureGenerator implements Serializable {
         List<String> features = new ArrayList<String>();
 
         //lemma unigrams
-        features.add("splmu,i-1|" + prevToken.lemma);
-        features.add("splmu,i|" + currToken.lemma);
-        features.add("splmu,i+1|" + nextToken.lemma);
+        features.add("l-1|" + prevToken.lemma);
+        features.add("l0|" + currToken.lemma);
+        features.add("l1|" + nextToken.lemma);
 
         //lemma bigrams
-        features.add("splmb,i-1,i|" +        //<i-1, i>
-                prevToken.lemma + " " + currToken.lemma);
-        features.add("splmb,i,i+1|" +        //<i, i+1>
-                currToken.lemma + " " + nextToken.lemma);
+        features.add("l-10|" +        //<i-1, i>
+                prevToken.lemma + ' ' + currToken.lemma);
+        features.add("l01|" +        //<i, i+1>
+                currToken.lemma + ' ' + nextToken.lemma);
 
         return features;
     }
@@ -208,11 +217,11 @@ public class PredicateFeatureGenerator implements Serializable {
         List<String> features = new ArrayList<String>();
 
         //form unigrams
-        features.add("spfm,i-2|" + prev2Token.form);
-        features.add("spfm,i-1|" + prevToken.form);
-        features.add("spfm,i|" + currToken.form);
-        features.add("spfm,i+1|" + nextToken.form);
-        features.add("spfm,i+2|" + next2Token.form);
+        features.add("f-2|" + prev2Token.form);
+        features.add("f-1|" + prevToken.form);
+        features.add("f0|" + currToken.form);
+        features.add("f1|" + nextToken.form);
+        features.add("f2|" + next2Token.form);
 
         return features;
     }
@@ -221,19 +230,19 @@ public class PredicateFeatureGenerator implements Serializable {
         List<String> features = new ArrayList<String>();
 
         //pos unigrams
-        features.add("pposu,i-1|" + prevToken.pos);
-        features.add("pposu,i|" + currToken.pos);
-        features.add("pposu,i+1|" + nextToken.pos);
+        features.add("p-1|" + prevToken.pos);
+        features.add("p0|" + currToken.pos);
+        features.add("p1|" + nextToken.pos);
 
         //pos bigrams
-        features.add("pposb,i-2,i-1|" +    //<i-2, i-1>
-                prev2Token.pos + " " + prevToken.pos);
-        features.add("pposb,i-1,i|" +        //<i-1, i>
-                prevToken.pos + " " + currToken.pos);
-        features.add("pposb,i,i+1|" +        //<i, i+1>
-                currToken.pos + " " + nextToken.pos);
-        features.add("pposb,i+1,i+2|" +    //<i, i+1>
-                nextToken.pos + " " + next2Token.pos);
+        features.add("p-21|" +    //<i-2, i-1>
+                prev2Token.pos + ' ' + prevToken.pos);
+        features.add("p-10|" +        //<i-1, i>
+                prevToken.pos + ' ' + currToken.pos);
+        features.add("p01|" +        //<i, i+1>
+                currToken.pos + ' ' + nextToken.pos);
+        features.add("p12|" +    //<i, i+1>
+                nextToken.pos + ' ' + next2Token.pos);
 
         return features;
     }
@@ -248,24 +257,24 @@ public class PredicateFeatureGenerator implements Serializable {
         String next2WordShape = wordShapeOf(next2Token);
 
         //word shape unigrams
-        features.add("wdshpu,i-1|" + prevWordShape);
-        features.add("wdshpu,i|" + wordShape);
-        features.add("wdshpu,i+1|" + nextWordShape);
+        features.add("w-1|" + prevWordShape);
+        features.add("w0|" + wordShape);
+        features.add("w1|" + nextWordShape);
 
         //word shape bigrams
-        features.add("wdshpb,i-1,i|" +
-                prevWordShape + " " + wordShape);
-        features.add("wdshpb,i,i+1|" +
-                wordShape + " " + nextWordShape);
+        features.add("w-10|" +
+                prevWordShape + ' ' + wordShape);
+        features.add("w01|" +
+                wordShape + ' ' + nextWordShape);
 
         //word shape trigrams
-        features.add("wdshpt,i-2,i-1,i|" +
-                prev2WordShape + " " +
-                prevWordShape + " " +
+        features.add("w-210|" +
+                prev2WordShape + ' ' +
+                prevWordShape + ' ' +
                 wordShape);
-        features.add("wdshpt,i,i+1,i+2|" +
-                wordShape + " " +
-                nextWordShape + " " +
+        features.add("w012|" +
+                wordShape + ' ' +
+                nextWordShape + ' ' +
                 next2WordShape);
 
         return features;
@@ -288,18 +297,19 @@ public class PredicateFeatureGenerator implements Serializable {
     public void reduceFeatureSet(Collection<SemanticFrameSet> trainingSet) {
         Counter<String> featureCounter = new ClassicCounter<String>();
 
-        for (SemanticFrameSet frameSet : trainingSet) {
-            for (Token t : frameSet) {
+        for (SemanticFrameSet frameSet : trainingSet)
+            for (Token t : frameSet)
                 for (String s : featuresOf(frameSet, t))
                     featureCounter.incrementCount(s);
-            }
-        }
+
         System.out.println("predclass initial feature set size: " + featureCounter.size());
 
         allowedNonStructuralFeatures = new HashSet<String>();
         for (String s : featureCounter.keySet())
             if (featureCounter.getCount(s) >= FEATURE_COUNT_THRESHOLD)
                 allowedNonStructuralFeatures.add(s);
+
+        System.out.println("predclass final feature set size: " + allowedNonStructuralFeatures.size());
     }
 
     /**

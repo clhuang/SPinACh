@@ -3,15 +3,11 @@ package spinach.predicateclassifier;
 import edu.stanford.nlp.classify.Dataset;
 import edu.stanford.nlp.ling.BasicDatum;
 import spinach.classifier.PerceptronClassifier;
-import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 import spinach.sentence.TokenSentence;
 import spinach.sentence.TokenSentenceAndPredicates;
 
 import java.io.Serializable;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 /**
  * Given a sentence, a PredicateClassifier classifies the predicates of that sentence
@@ -76,48 +72,11 @@ public class PredicateClassifier implements Serializable {
                 predicateClass = classifier.trainingClassOf(featureGenerator.datumFrom(sentenceAndPredicates, t));
             else
                 predicateClass = classifier.classOf(featureGenerator.datumFrom(sentenceAndPredicates, t));
-            if (!(predicateClass == null) && predicateClass.equals(PREDICATE_LABEL))
+            if (PREDICATE_LABEL.equals(predicateClass))
                 sentenceAndPredicates.addPredicate(t);
         }
 
         return sentenceAndPredicates;
-    }
-
-    /**
-     * Generates a dataset from a frameset to be used in training
-     *
-     * @param frameSet sentence to be analyzed
-     * @return dataset with features of sentence
-     */
-    private Dataset<String, String> datasetFrom(SemanticFrameSet frameSet) {
-        Dataset<String, String> dataset = new Dataset<String, String>();
-        Set<Token> predicates = new HashSet<Token>(frameSet.getPredicateList());
-        for (Token t : frameSet) {
-            BasicDatum<String, String> datum = (BasicDatum<String, String>) featureGenerator.datumFrom(frameSet, t);
-            if (predicates.contains(t))
-                datum.setLabel(PREDICATE_LABEL);
-            else
-                datum.setLabel(NOT_PREDICATE_LABEL);
-            dataset.add(datum);
-        }
-
-        return dataset;
-    }
-
-    /**
-     * Generates a dataset from a set of frames to be used in training
-     *
-     * @param frameSets sentences to be analyzed
-     * @return dataset with features of sentences
-     */
-    public Dataset<String, String> datasetFrom(List<SemanticFrameSet> frameSets) {
-        Dataset<String, String> dataset = new Dataset<String, String>();
-        for (SemanticFrameSet frameSet : frameSets)
-            dataset.addAll(datasetFrom(frameSet));
-
-        dataset.applyFeatureCountThreshold(3);
-
-        return dataset;
     }
 
     /**
@@ -138,12 +97,10 @@ public class PredicateClassifier implements Serializable {
                     featureGenerator.datumFrom(predictedSentence, t);
 
             datum.setLabel(PerceptronClassifier.formatManualTrainingLabel(predictedLabel, goldLabel));
-
             dataset.add(datum);
         }
 
         classifier.manualTrain(dataset);
-
     }
 
     /**

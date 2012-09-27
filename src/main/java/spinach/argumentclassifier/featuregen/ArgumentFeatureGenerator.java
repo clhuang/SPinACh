@@ -183,6 +183,25 @@ public class ArgumentFeatureGenerator implements Serializable {
         features.add("pathlem|" + argument.lemma + " " + path.toString() + predicate.lemma);    //with splm tagss
 
         /*
+		 * Feature 4: length of dependency path
+		 */
+        features.add("pathlength|" + (argPath.size() + predPath.size()));
+
+        /*
+           * Feature 5: difference in positions, and binary tokens
+           */
+        int distance = Math.abs(predicate.sentenceIndex - argument.sentenceIndex);
+        features.add("distance|" + distance);
+        features.add("distance=1|" + (distance == 1 ? "t" : "f"));
+        features.add("distance=2|" + (distance == 2 ? "t" : "f"));
+        features.add("distance>2|" + (distance > 2 ? "t" : "f"));
+
+        /*
+           * Feature 6: predicate before or after argument
+           */
+        features.add("predrelpos|" + ((predicate.sentenceIndex < argument.sentenceIndex) ? "before" : "after"));
+
+        /*
          * other features
          */
 
