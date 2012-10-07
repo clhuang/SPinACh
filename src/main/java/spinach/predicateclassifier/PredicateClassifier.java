@@ -1,5 +1,6 @@
 package spinach.predicateclassifier;
 
+import com.google.common.collect.ImmutableList;
 import edu.stanford.nlp.classify.Dataset;
 import edu.stanford.nlp.ling.BasicDatum;
 import spinach.classifier.PerceptronClassifier;
@@ -8,6 +9,7 @@ import spinach.sentence.TokenSentence;
 import spinach.sentence.TokenSentenceAndPredicates;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * Given a sentence, a PredicateClassifier classifies the predicates of that sentence
@@ -23,6 +25,10 @@ public class PredicateClassifier implements Serializable {
 
     private final static String PREDICATE_LABEL = "predicate";
     private final static String NOT_PREDICATE_LABEL = "not_predicate";
+
+    private final static List<String> LABEL_SET =
+            new ImmutableList.Builder<String>().add(
+                    NOT_PREDICATE_LABEL, PREDICATE_LABEL).build();
 
     /**
      * Makes a predicate classifier from a perceptron and a feature generator
@@ -42,6 +48,15 @@ public class PredicateClassifier implements Serializable {
      */
     public PredicateFeatureGenerator getFeatureGenerator() {
         return featureGenerator;
+    }
+
+    /**
+     * Returns the set of possible labels for the perceptron.
+     *
+     * @return set of possible labels--PREDICATE and NOT_PREDICATE
+     */
+    public static List<String> getLabelSet() {
+        return LABEL_SET;
     }
 
     /**

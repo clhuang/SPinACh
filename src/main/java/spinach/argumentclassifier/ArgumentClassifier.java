@@ -23,8 +23,6 @@ import java.util.*;
  */
 public abstract class ArgumentClassifier implements Serializable {
 
-    private final long serialVersionUID = 1588431885484497674L;
-
     private final PerceptronClassifier classifier;
     private final ArgumentFeatureGenerator featureGenerator;
 
@@ -248,7 +246,7 @@ public abstract class ArgumentClassifier implements Serializable {
     }
 
     /**
-     * Resets the perceptron for this classifier so that it can be retrained
+     * Resets the perceptron for this classifier so that it can be retrained.
      */
     public void reset() {
         classifier.reset();
@@ -260,5 +258,21 @@ public abstract class ArgumentClassifier implements Serializable {
      */
     public void updateAverageWeights() {
         classifier.updateAverageWeights();
+    }
+
+    /**
+     * Extracts the set of argument labels from a set of sentences.
+     *
+     * @param frameSets set of sentences
+     * @return collection of labels encountered in those sentences (plus NIL label)
+     */
+    public static Collection<String> getLabelSet(Collection<SemanticFrameSet> frameSets) {
+        List<String> labels = new ArrayList<String>();
+        labels.add(NIL_LABEL);
+        for (SemanticFrameSet s : frameSets)
+            for (Token predicate : s)
+                labels.addAll(s.argumentsOf(predicate).values());
+
+        return labels;
     }
 }

@@ -24,7 +24,7 @@ public class PredicateFeatureGenerator implements Serializable {
 
     private static final int WORD_SHAPER = WordShapeClassifier.WORDSHAPECHRIS2;
     private static final boolean CHILD_INDICES_IN_FEATURES = false;
-    private static final boolean CHILDREN_INDICES_FEATURE = true;
+    private static final boolean CHILDREN_INDICES_FEATURE = false;
 
     private static final int FEATURE_COUNT_THRESHOLD = 3;
 

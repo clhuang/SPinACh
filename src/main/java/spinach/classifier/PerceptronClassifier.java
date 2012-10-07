@@ -11,10 +11,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 /**
  * A classifier based on a multiclass perceptron.
@@ -175,11 +172,16 @@ public class PerceptronClassifier implements Classifier, Serializable {
      * Creates a perceptron classifier
      *
      * @param initialFeatureSet set of features to start with
+     * @param initialLabelSet   set of labels to start with
      * @param epochs            number of times to iterate over dataset
      */
-    public PerceptronClassifier(Set<String> initialFeatureSet, int epochs) {
+    public PerceptronClassifier(Collection<String> initialFeatureSet, Collection<String> initialLabelSet, int epochs) {
         this(epochs);
         featureIndex.addAll(initialFeatureSet);
+        labelIndex.addAll(initialLabelSet);
+
+        for (int i = 0; i < labelIndex.size(); i++)
+            zWeights.add(new LabelWeights(initialFeatureSet.size(), labelIndex.get(i)));
     }
 
     /**
@@ -311,6 +313,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
     private String argMaxDotProduct(Set<Integer> exampleFeatureIndices) {
         double maxDotProduct = Double.NEGATIVE_INFINITY;
         int argMax = -1;
+
         for (int i = 0; i < zWeights.size(); i++) {
             double dotProduct = zWeights.get(i).trainingDotProduct(exampleFeatureIndices);
             if (dotProduct > maxDotProduct) {
@@ -318,8 +321,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
                 argMax = i;
             }
         }
-        if (argMax == -1)
-            return null;
+
         return labelIndex.get(argMax);
     }
 
@@ -394,6 +396,8 @@ public class PerceptronClassifier implements Classifier, Serializable {
      */
     public void reset() {
         zWeights.clear();
+        for (int i = 0; i < labelIndex.size(); i++)
+            zWeights.add(new LabelWeights(featureIndex.size(), labelIndex.get(i)));
     }
 
     /**
