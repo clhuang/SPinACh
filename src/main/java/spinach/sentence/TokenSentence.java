@@ -18,6 +18,7 @@ import java.util.*;
 public class TokenSentence implements Iterable<Token> {
 
     List<Token> sentenceTokens = new ArrayList<Token>();
+    Token root;
     ArrayListMultimap<Integer, Token> children = ArrayListMultimap.create();
 
     /**
@@ -37,7 +38,19 @@ public class TokenSentence implements Iterable<Token> {
      */
     public void addToken(Token token) {
         sentenceTokens.add(token);
-        children.put(token.headSentenceIndex, token);
+        if (token.headSentenceIndex >= 0)
+            children.put(token.headSentenceIndex, token);
+        else
+            root = token;
+    }
+
+    /**
+     * Returns the sentence root.
+     *
+     * @return sentence root
+     */
+    public Token getRoot() {
+        return root;
     }
 
     /**
@@ -106,24 +119,28 @@ public class TokenSentence implements Iterable<Token> {
     public Deque<Token> getSiblings(Token t) {
         Deque<Token> siblings = new ArrayDeque<Token>();
         Token parent = getParent(t);
-        if (parent == null)
+        if (parent == null) {
+            siblings.add(t);
             return siblings;
+        }
         siblings.addAll(getChildren(parent));
-        siblings.remove(t);
         return siblings;
     }
 
     /**
-     * Get the siblings that appear before some token
+     * Get the siblings that appear before some token (including that token)
      *
      * @param t token to analyze
      * @return deque of preceding siblings in order
      */
     public Deque<Token> getLeftSiblings(Token t) {
         Deque<Token> leftSiblings = new ArrayDeque<Token>();
-        for (Token sibling : getSiblings(t))
-            if (t.sentenceIndex > sibling.sentenceIndex)
+        for (Token sibling : getSiblings(t)) {
+            if (t.sentenceIndex >= sibling.sentenceIndex)
                 leftSiblings.add(sibling);
+            else
+                break;
+        }
 
         return leftSiblings;
     }
@@ -137,7 +154,7 @@ public class TokenSentence implements Iterable<Token> {
     public Deque<Token> getRightSiblings(Token t) {
         Deque<Token> rightSiblings = new ArrayDeque<Token>();
         for (Token sibling : getSiblings(t))
-            if (t.sentenceIndex < sibling.sentenceIndex)
+            if (t.sentenceIndex <= sibling.sentenceIndex)
                 rightSiblings.add(sibling);
 
         return rightSiblings;
@@ -222,20 +239,22 @@ public class TokenSentence implements Iterable<Token> {
         int verbContextRightBoundary = t.sentenceIndex - 1;
         int verbContextLeftBoundary = verbContextRightBoundary;
 
-        while (verbContextLeftBoundary >= 0 && !tokenAt(verbContextLeftBoundary).pos.equals("CC"))
+        while (verbContextLeftBoundary > 0 && !tokenAt(verbContextLeftBoundary).pos.equals("CC"))
             verbContextLeftBoundary--;
-        verbContextLeftBoundary--;
+        if (verbContextLeftBoundary > 0)
+            verbContextLeftBoundary--;
+        else
+            verbContextLeftBoundary = 0;
 
         Token verbModifier = null;
 
-        for (int i = verbContextRightBoundary; i >= verbContextLeftBoundary; i--)
-            if (i >= 0) {
-                String pos = tokenAt(i).pos;
-                if (pos.startsWith("TO") || pos.startsWith("MD") || pos.startsWith("VB") || pos.startsWith("AUX")) {
-                    verbModifier = tokenAt(i);
-                    break;
-                }
+        for (int i = verbContextRightBoundary; i >= verbContextLeftBoundary; i--) {
+            String pos = tokenAt(i).pos;
+            if (pos.startsWith("TO") || pos.startsWith("MD") || pos.startsWith("VB") || pos.startsWith("AUX")) {
+                verbModifier = tokenAt(i);
+                break;
             }
+        }
 
         if (t.pos.equals("VBG") && verbModifier == null)
             return "gerund";
@@ -243,8 +262,7 @@ public class TokenSentence implements Iterable<Token> {
             return "infinitive";
         if (isBeVerb(t))
             return "copulative";
-        if (t.pos.equals("VBN") || t.pos.equals("VBD")
-                && verbModifier != null &&
+        if ((t.pos.equals("VBN") || t.pos.equals("VBD")) && verbModifier != null &&
                 (isBeVerb(verbModifier) || isGetVerb(verbModifier)))
             return "passive";
         return "active";

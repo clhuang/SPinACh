@@ -77,4 +77,31 @@ public class Token {
                 append(sentenceIndex).hashCode();
     }
 
+    /**
+     * Returns whether or not this token comes before some other token.
+     *
+     * @param other other token to compare against, must be in same sentence to give meaningful results
+     * @return true if the sentence index of this token is less than the other's, false otherwise
+     */
+    public boolean comesBefore(Token other) {
+        return sentenceIndex < other.sentenceIndex;
+    }
+
+    /**
+     * Returns whether or not this token is a verb.
+     *
+     * @return whether or not the part of speech tag begins with a V
+     */
+    public boolean isVerb() {
+        return pos.startsWith("V");
+    }
+
+    /**
+     * Returns whether or not this token is a noun.
+     *
+     * @return whether or not the part of speech tag begins with a N
+     */
+    public boolean isNoun() {
+        return pos.startsWith("N");
+    }
 }

@@ -150,6 +150,10 @@ public class StructuredClassifier implements GEN {
 
     private void train() {
         DateFormat df = DateFormat.getDateTimeInstance();
+
+        predicateClassifier.stopAutoUpdateWeights();
+        argumentClassifier.stopAutoUpdateWeights();
+
         for (int i = 0; i < epochs; i++) {
             System.out.println();
             System.out.println("Begin training epoch " + (i + 1) + " of " + epochs);
@@ -162,11 +166,14 @@ public class StructuredClassifier implements GEN {
             for (SemanticFrameSet goldFrame : goldFramesCopy) {
                 j++;
                 train(goldFrame);
-                if (j % 5000 == 0) {
-                    Date date = new Date();
+                if (j % 5000 == 0)
                     System.out.println("Trained " + j + " sentences of " + trainingFrames.size() + " | " +
-                            df.format(date));
-                }
+                            df.format(new Date()));
+            }
+
+            if (i == epochs * 0.2) {
+                predicateClassifier.startAutoUpdateWeights();
+                argumentClassifier.startAutoUpdateWeights();
             }
         }
     }
@@ -225,18 +232,16 @@ public class StructuredClassifier implements GEN {
         Random random = new Random();
 
         int numFeaturesToAdd = featureGenerator.featureGeneratorSet().size();
-        int visited = 0;
         HashSet<IndividualFeatureGenerator> enabledFeatures = new HashSet<IndividualFeatureGenerator>();
 
         Iterator<IndividualFeatureGenerator> it = featureGenerator.featureGeneratorSet().iterator();
-        while (numFeaturesToAdd > 0) {
+        for (int visited = 0; numFeaturesToAdd > 0; visited++) {
             IndividualFeatureGenerator item = it.next();
             if (random.nextDouble() < ((double) numFeaturesToAdd) /
                     (featureGenerator.featureGeneratorSet().size() - visited)) {
                 enabledFeatures.add(item);
                 numFeaturesToAdd--;
             }
-            visited++;
         }
         featureGenerator.setEnabledFeatureGenerators(enabledFeatures);
 

@@ -103,28 +103,42 @@ public class ArgumentFeatureGenerator implements Serializable {
         Collection<String> features = new HashSet<String>();
 
         /*
-		 * Feature 1: argument (and modifier), predicate split lemma, form; pposs
+		 * Feature 1: argument (and modifier), predicate split lemma, form; pos
 		 */
-        features.add("arglm|" + argument.lemma);
-        features.add("argfm|" + argument.form);
-        features.add("argpos|" + argument.pos);
-        features.add("predlm|" + predicate.lemma);
-        features.add("predfm|" + predicate.form);
-        features.add("predpos|" + predicate.pos);
+        features.add("aL|" + argument.lemma);
+        features.add("aF|" + argument.form);
+        features.add("aP|" + argument.pos);
+
+        features.add("pL|" + predicate.lemma);
+        features.add("pF|" + predicate.form);
+        features.add("pP|" + predicate.pos);
 
         Token pmod = getPMOD(sentence, argument);
         if (pmod != null) {
-            features.add("pmodlm|" + pmod.lemma);
-            features.add("pmodfm|" + pmod.form);
-            features.add("pmodpos|" + pmod.pos);
+            features.add("pmodL|" + pmod.lemma);
+            features.add("pmodF|" + pmod.form);
+            features.add("pmodP|" + pmod.pos);
         }
+
+        Token ppHead;
+        if (argument.syntacticHeadRelation.equals("PMOD"))
+            ppHead = sentence.getLeftSiblings(sentence.getParent(argument)).getFirst();
+        else
+            ppHead = sentence.getParent(argument);
+
+        if (ppHead == null)
+            ppHead = Token.emptyToken;
+
+        features.add("ppHeadL|" + ppHead.lemma);
+        features.add("ppHeadF|" + ppHead.form);
+        features.add("aL+ppHeadF|" + argument.lemma + "|" + ppHead.form);
 
 
         /*
         * Feature 2: pos/deprel for predicate children, children of predicate ancestor across VC/IM dependencies
         */
-        StringBuilder relationFeature = new StringBuilder("predcdeprel|");
-        StringBuilder posFeature = new StringBuilder("predcpos|");
+        StringBuilder relationFeature = new StringBuilder("predCRel|");
+        StringBuilder posFeature = new StringBuilder("predCPos|");
         for (Token child : sentence.getChildren(predicate)) {
             relationFeature.append(child.syntacticHeadRelation).append(" ");
             posFeature.append(child.pos).append(" ");
@@ -132,8 +146,8 @@ public class ArgumentFeatureGenerator implements Serializable {
         features.add(relationFeature.toString());
         features.add(posFeature.toString());
 
-        relationFeature = new StringBuilder("vcimdeprel|");
-        posFeature = new StringBuilder("vcimpos|");
+        relationFeature = new StringBuilder("vcimRel|");
+        posFeature = new StringBuilder("vcimPos|");
         Token vcimAncestor = predicate;
         while (vcimAncestor.syntacticHeadRelation.equals("VC") || vcimAncestor.syntacticHeadRelation.equals("IM"))
             vcimAncestor = sentence.getParent(vcimAncestor);
@@ -171,21 +185,24 @@ public class ArgumentFeatureGenerator implements Serializable {
         argPath.removeLast(); //ancestor is last thing in both pathA and pathB, don't need it
         predPath.removeLast();
 
-        while (!argPath.isEmpty()) {    //argPath is (upward) path from argument to ancestor
+        while (!argPath.isEmpty())    //argPath is (upward) path from argument to ancestor
             path.append(argPath.removeFirst().syntacticHeadRelation).append("^ ");
-        }
-        while (!predPath.isEmpty()) {    //predPath is (downwards) path from predicate to ancestor
+        while (!predPath.isEmpty())    //predPath is (downwards) path from predicate to ancestor
             path.append(predPath.removeLast().syntacticHeadRelation).append("v ");
-        }
 
         features.add("path|" + path.toString());
-        features.add("pathpos|" + argument.pos + " " + path.toString() + predicate.pos);    //with poss tags
-        features.add("pathlem|" + argument.lemma + " " + path.toString() + predicate.lemma);    //with splm tagss
+        features.add("pathP|" + argument.pos + " " + path.toString() + predicate.pos);    //with pos tags
+        features.add("pathL|" + argument.lemma + " " + path.toString() + predicate.lemma);    //with lemma tags
+
+        //p.voice + a:p|direction
+        String predicateVoice = sentence.voiceOf(predicate);
+        features.add("pV+apDir|" + predicateVoice + "|" +
+                (predicate.sentenceIndex > argument.sentenceIndex ? "pFirst" : "aFirst"));
 
         /*
 		 * Feature 4: length of dependency path
 		 */
-        features.add("pathlength|" + (argPath.size() + predPath.size()));
+        features.add("pathLength|" + (argPath.size() + predPath.size()));
 
         /*
            * Feature 5: difference in positions, and binary tokens
@@ -199,17 +216,20 @@ public class ArgumentFeatureGenerator implements Serializable {
         /*
            * Feature 6: predicate before or after argument
            */
-        features.add("predrelpos|" + ((predicate.sentenceIndex < argument.sentenceIndex) ? "before" : "after"));
+        features.add("predRelPos|" + ((predicate.sentenceIndex < argument.sentenceIndex) ? "before" : "after"));
 
         /*
          * other features
          */
 
+        //is current predicate
         if (argument.equals(predicate))
-            features.add("isCurrentPredicate|" + predicate.lemma);
+            features.add("isCurPred|" + predicate.lemma);
         else
-            features.add("isCurrentPredicate|nope");
-        //TODO pphead
+            features.add("isCurPred|nope");
+
+        //predicate voice
+        features.add("pVoice|" + predicateVoice);
 
         return features;
     }

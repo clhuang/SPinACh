@@ -132,4 +132,19 @@ public class PredicateClassifier implements Serializable {
     public void updateAverageWeights() {
         classifier.updateAverageWeights();
     }
+
+    /**
+     * Begin automatically updating weights for classification.
+     * Do this after training the first couple epochs to get stable results.
+     */
+    public void startAutoUpdateWeights() {
+        classifier.startAutoUpdateWeights();
+    }
+
+    /**
+     * Stop automatically updating classification weights.
+     */
+    public void stopAutoUpdateWeights() {
+        classifier.stopAutoUpdateWeights();
+    }
 }

@@ -23,6 +23,8 @@ public class PerceptronClassifier implements Classifier, Serializable {
     private static final long serialVersionUID = 1L;
     private static final double ARRAY_INCREMENT_FACTOR = 2;
 
+    private boolean autoUpdateWeights;
+
     /**
      * Each unique feature is assigned a number, as defined in the index.
      * LabelWeights, for each label, provides a vector that when, multiplied
@@ -101,7 +103,8 @@ public class PerceptronClassifier implements Classifier, Serializable {
         }
 
         void update(Set<Integer> exampleFeatureIndices, double weight) {
-            updateAverage(exampleFeatureIndices);
+            if (autoUpdateWeights)
+                updateAverage(exampleFeatureIndices);
 
             for (int i : exampleFeatureIndices) {
                 ensureCapacity(i);
@@ -406,5 +409,20 @@ public class PerceptronClassifier implements Classifier, Serializable {
     public void updateAverageWeights() {
         for (LabelWeights l : zWeights)
             l.updateAllAverage();
+    }
+
+    /**
+     * Start automatically updating weights.
+     * In some cases, this should only be done after a few epochs to get stable results.
+     */
+    public void startAutoUpdateWeights() {
+        autoUpdateWeights = true;
+    }
+
+    /**
+     * Stop automatically updating weights.
+     */
+    public void stopAutoUpdateWeights() {
+        autoUpdateWeights = false;
     }
 }

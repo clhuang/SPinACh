@@ -22,7 +22,7 @@ public class Metric {
 
     public final static String TOTAL = "TOTAL";
 
-    public static final boolean PREDICTED_PRED_DURING_ARG_TESTING = false;
+    private static final boolean PREDICTED_PRED_DURING_ARG_TESTING = false;
 
     private int correctPredicateNum;
     private int goldPredicateNum;
