@@ -32,7 +32,7 @@ public class TokenSentence implements Iterable<Token> {
     }
 
     /**
-     * Add a token to the end of the sentence
+     * Adds a token to the end of the sentence.
      *
      * @param token token to be added
      */
@@ -54,7 +54,7 @@ public class TokenSentence implements Iterable<Token> {
     }
 
     /**
-     * Find the parent of some token
+     * Get the parent of some token.
      *
      * @param t token whose parent we are looking for
      * @return syntactic head of t, null if t is root
@@ -67,7 +67,7 @@ public class TokenSentence implements Iterable<Token> {
     }
 
     /**
-     * Get the children of some token
+     * Get the children of some token.
      *
      * @param t token whose children we are looking for
      * @return ordered list of token's children
@@ -77,7 +77,7 @@ public class TokenSentence implements Iterable<Token> {
     }
 
     /**
-     * Get the descendants of some token
+     * Get the syntactic descendants of some token.
      *
      * @param t token whose descendants we are looking for
      * @return set of token's descendants
@@ -94,7 +94,7 @@ public class TokenSentence implements Iterable<Token> {
     }
 
     /**
-     * Get the ancestors of some token
+     * Get the ancestors of some token in the syntactic tree.
      *
      * @param t token whose ancestors we are looking for
      * @return ordered list of token's ancestors (going head to head)
@@ -111,7 +111,7 @@ public class TokenSentence implements Iterable<Token> {
     }
 
     /**
-     * Get the siblings (children of parent) of some token
+     * Get the siblings (children of parent) of some token, including that token.
      *
      * @param t token to analyze
      * @return deque of siblings in order
@@ -128,7 +128,7 @@ public class TokenSentence implements Iterable<Token> {
     }
 
     /**
-     * Get the siblings that appear before some token (including that token)
+     * Get the siblings that appear before some token, inclusive.
      *
      * @param t token to analyze
      * @return deque of preceding siblings in order
@@ -146,7 +146,7 @@ public class TokenSentence implements Iterable<Token> {
     }
 
     /**
-     * get the siblings that appear after some token
+     * Get the siblings that appear after some token, inclusive.
      *
      * @param t token to analyze
      * @return deque of succeeding siblings in order
@@ -161,7 +161,7 @@ public class TokenSentence implements Iterable<Token> {
     }
 
     /**
-     * Find a common ancestor of two tokens
+     * Find a common ancestor of two tokens in the syntactic tree.
      *
      * @param a first token
      * @param b second token
@@ -186,9 +186,9 @@ public class TokenSentence implements Iterable<Token> {
     }
 
     /**
-     * Find the path between some token and some ancestor of that token
+     * Find the path along the syntactic tree between some token and some ancestor of that token
      *
-     * @param a        the beginning token
+     * @param a the beginning token
      * @param ancestor some ancestor of a
      * @return a deque starting from a, going from token to head and ending at ancestor
      */
@@ -203,6 +203,26 @@ public class TokenSentence implements Iterable<Token> {
                 throw new IllegalArgumentException("Ancestor is not ancestor of provided token");
             path.add(currentToken);
         }
+
+        return path;
+    }
+
+    /**
+     * Returns the shortest path along the syntactic tree from token a to b.
+     *
+     * @param a starting token
+     * @param b ending token
+     * @return deque of tokens along syntactic path from a to b, inclusive
+     */
+    public Deque<Token> syntacticPath(Token a, Token b) {
+        Deque<Token> path = new ArrayDeque<Token>();
+        Token ancestor = getCommonAncestor(a, b);
+        path.addAll(ancestorPath(a, ancestor));
+
+        Deque<Token> bPath = ancestorPath(b, ancestor);
+        bPath.removeLast();
+        while (!bPath.isEmpty())
+            path.add(bPath.removeLast());
 
         return path;
     }
