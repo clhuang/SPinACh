@@ -24,6 +24,8 @@ public class PerceptronClassifier implements Classifier, Serializable {
     private static final double ARRAY_INCREMENT_FACTOR = 2;
 
     private boolean autoUpdateWeights;
+    private int burnInPeriod = 0;
+    private int totalIterationCount = 0;
 
     /**
      * Each unique feature is assigned a number, as defined in the index.
@@ -284,8 +286,14 @@ public class PerceptronClassifier implements Classifier, Serializable {
             zWeights.get(goldLabelIndex).update(featureIndices, 1.0);
         }
 
+        if (totalIterationCount++ == burnInPeriod) {
+            System.out.println("BEGIN AUTO UPDATING WEIGHTS");
+            autoUpdateWeights = true;
+        }
+
         for (LabelWeights zw : zWeights)
-            zw.incrementCurrentIteration();
+            if (autoUpdateWeights)
+                zw.incrementCurrentIteration();
     }
 
     private void train(Datum<String, String> datum) {
@@ -412,17 +420,12 @@ public class PerceptronClassifier implements Classifier, Serializable {
     }
 
     /**
-     * Start automatically updating weights.
-     * In some cases, this should only be done after a few epochs to get stable results.
+     * Sets the burn-in period for this classifier
+     *
+     * @param numIterations number of iterations to go through before beginning to update weight averages
      */
-    public void startAutoUpdateWeights() {
-        autoUpdateWeights = true;
+    public void setBurnInPeriod(int numIterations) {
+        burnInPeriod = numIterations;
     }
 
-    /**
-     * Stop automatically updating weights.
-     */
-    public void stopAutoUpdateWeights() {
-        autoUpdateWeights = false;
-    }
 }
