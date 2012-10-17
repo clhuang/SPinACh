@@ -23,6 +23,9 @@ public class Main {
         PerceptronClassifier argumentClassifierPerceptron =
                 new PerceptronClassifier(argumentFeatureGenerator.getAllowedNonStructuralFeatures(),
                         ArgumentClassifier.getLabelSet(frameSets), 10);
+
+        argumentClassifierPerceptron.setBurnInPeriod(800000);
+
         ArgumentClassifier argumentClassifier =
                 //StructuredClassifier.importArgumentClassifier("src/test/resources/argumentClassifierA.gz");
                 new EasyFirstArgumentClassifier(argumentClassifierPerceptron, argumentFeatureGenerator);
