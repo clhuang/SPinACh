@@ -31,7 +31,7 @@ public class PredicateClassifier implements Serializable {
                     NOT_PREDICATE_LABEL, PREDICATE_LABEL).build();
 
     /**
-     * Makes a predicate classifier from a perceptron and a feature generator
+     * Creates a predicate classifier from a perceptron and a feature generator.
      *
      * @param classifier       perceptron used to classify predicates
      * @param featureGenerator feature generator to generate features
@@ -60,7 +60,7 @@ public class PredicateClassifier implements Serializable {
     }
 
     /**
-     * Adds a list of predicates to a sentence
+     * Adds a list of predicates to a sentence.
      *
      * @param sentence sentence to analyze
      * @return the same sentence with a list of predicates
@@ -70,7 +70,7 @@ public class PredicateClassifier implements Serializable {
     }
 
     /**
-     * Adds a list of predicates to a sentence based on training weights
+     * Adds a list of predicates to a sentence based on training weights.
      *
      * @param sentence sentence to analyze
      * @return the same sentence with a list of predicates
@@ -95,7 +95,7 @@ public class PredicateClassifier implements Serializable {
     }
 
     /**
-     * Updates the perceptron using gold and predicted sentences
+     * Updates the perceptron using gold and predicted sentences.
      *
      * @param predictedSentence predicted sentence
      * @param goldSentence      true sentence
@@ -119,32 +119,10 @@ public class PredicateClassifier implements Serializable {
     }
 
     /**
-     * Resets the perceptron for this classifier so that it can be retrained
-     */
-    public void reset() {
-        classifier.reset();
-    }
-
-    /**
      * Updates the average weights for this classifier, must be done to
-     * classify labels
+     * classify labels.
      */
     public void updateAverageWeights() {
         classifier.updateAverageWeights();
-    }
-
-    /**
-     * Begin automatically updating weights for classification.
-     * Do this after training the first couple epochs to get stable results.
-     */
-    public void startAutoUpdateWeights() {
-        classifier.startAutoUpdateWeights();
-    }
-
-    /**
-     * Stop automatically updating classification weights.
-     */
-    public void stopAutoUpdateWeights() {
-        classifier.stopAutoUpdateWeights();
     }
 }
