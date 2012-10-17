@@ -154,7 +154,7 @@ public abstract class ArgumentClassifier implements Serializable {
     }
 
     /**
-     * Generates a dataset (to be used in training) from a bunch of frameSets
+     * Generates a dataset (to be used in training) from a bunch of SemanticFrameSets.
      *
      * @param frameSets Collection of framesets to generate a dataset
      * @return Dataset with features generated from the collection of frames
@@ -170,7 +170,7 @@ public abstract class ArgumentClassifier implements Serializable {
     }
 
     /**
-     * Update the prediction model based on a known gold frame, and a predicted frame
+     * Update the prediction model based on a known gold frame, and a predicted frame.
      *
      * @param predictedFrame frame predicted by this model
      * @param goldFrame      known labels for sentence
@@ -228,7 +228,7 @@ public abstract class ArgumentClassifier implements Serializable {
     }
 
     /**
-     * Get the feature generator for this argument classifier
+     * Get the feature generator for this argument classifier.
      *
      * @return this classifier's feature generator
      */
@@ -237,7 +237,7 @@ public abstract class ArgumentClassifier implements Serializable {
     }
 
     /**
-     * Tells if the feature generator for this argument classifier can be trained
+     * Tells if the feature generator for this argument classifier can be trained.
      *
      * @return whether or not feature generator can be trained
      */
@@ -253,7 +253,7 @@ public abstract class ArgumentClassifier implements Serializable {
     }
 
     /**
-     * Updates the average weights for the classifier. Must be done in order
+     * Updates the average weights for the classifier. Must be done in order.
      * to perform classification.
      */
     public void updateAverageWeights() {
@@ -274,20 +274,5 @@ public abstract class ArgumentClassifier implements Serializable {
                 labels.addAll(s.argumentsOf(predicate).values());
 
         return labels;
-    }
-
-    /**
-     * Begin automatically updating weights for classification.
-     * Do this after training the first couple epochs to get stable results.
-     */
-    public void startAutoUpdateWeights() {
-        classifier.startAutoUpdateWeights();
-    }
-
-    /**
-     * Stop automatically updating classification weights.
-     */
-    public void stopAutoUpdateWeights() {
-        classifier.stopAutoUpdateWeights();
     }
 }
