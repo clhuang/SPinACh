@@ -39,6 +39,11 @@ public class StructuredClassifier implements GEN {
     private transient int trainingMode;
 
     /**
+     * When training argument classifier, use predicted predicates or gold predicates?
+     */
+    private final boolean PREDICTED_PRED_WHILE_ARG_TRAINING = false;
+
+    /**
      * Generates a structured classifier with a certain argument classifier, predicate classifier,
      * and a certain number of epochs
      *
@@ -92,12 +97,7 @@ public class StructuredClassifier implements GEN {
      * @return semantic frameset with predicted predicates and arguments
      */
     private SemanticFrameSet trainingParse(TokenSentence sentence) {
-
-        TokenSentenceAndPredicates sentenceAndPredicates =
-                predicateTrainingParse(sentence);
-
-        return argumentTrainingParse(sentenceAndPredicates);
-
+        return argumentTrainingParse(predicateTrainingParse(sentence));
     }
 
     private SemanticFrameSet argumentTrainingParse(TokenSentenceAndPredicates sentence) {
@@ -151,9 +151,6 @@ public class StructuredClassifier implements GEN {
     private void train() {
         DateFormat df = DateFormat.getDateTimeInstance();
 
-        predicateClassifier.stopAutoUpdateWeights();
-        argumentClassifier.stopAutoUpdateWeights();
-
         for (int i = 0; i < epochs; i++) {
             System.out.println();
             System.out.println("Begin training epoch " + (i + 1) + " of " + epochs);
@@ -169,11 +166,6 @@ public class StructuredClassifier implements GEN {
                 if (j % 5000 == 0)
                     System.out.println("Trained " + j + " sentences of " + trainingFrames.size() + " | " +
                             df.format(new Date()));
-            }
-
-            if (i == epochs * 0.2) {
-                predicateClassifier.startAutoUpdateWeights();
-                argumentClassifier.startAutoUpdateWeights();
             }
         }
     }
@@ -193,7 +185,9 @@ public class StructuredClassifier implements GEN {
                 break;
 
             case TRAIN_ARGUMENT_C:
-                predictedFrame = argumentTrainingParse(goldFrame);
+                predictedFrame = PREDICTED_PRED_WHILE_ARG_TRAINING ?
+                        trainingParse(goldFrame) :
+                        argumentTrainingParse(goldFrame);
                 argumentClassifier.update(predictedFrame, goldFrame);
                 break;
 
@@ -210,7 +204,7 @@ public class StructuredClassifier implements GEN {
 
     /**
      * Trains the argument feature generator for this object's ArgumentClassifier--
-     * enables features that increase the F1 of the structured classifier
+     * enables features that increase the F1 of the structured classifier.
      *
      * @param trainingFrames SemanticFrameSets with known good semantic data, to train on
      * @param testingFrames  SemanticFrameSets with known good semantic data, to test against
@@ -229,116 +223,143 @@ public class StructuredClassifier implements GEN {
 
         featureGenerator.clearFeatures();
 
-        Random random = new Random();
+        //S = {f_0, f_1, ..., f_k}, a random subset of FT
+        Random random = new Random(0);
 
-        int numFeaturesToAdd = featureGenerator.featureGeneratorSet().size();
-        HashSet<IndividualFeatureGenerator> enabledFeatures = new HashSet<IndividualFeatureGenerator>();
+        int numFeaturesToAdd = featureGenerator.featureGeneratorSet().size() / 2;
+        Set<IndividualFeatureGenerator> featureGeneratorSet = new HashSet<IndividualFeatureGenerator>();
 
         Iterator<IndividualFeatureGenerator> it = featureGenerator.featureGeneratorSet().iterator();
         for (int visited = 0; numFeaturesToAdd > 0; visited++) {
             IndividualFeatureGenerator item = it.next();
             if (random.nextDouble() < ((double) numFeaturesToAdd) /
                     (featureGenerator.featureGeneratorSet().size() - visited)) {
-                enabledFeatures.add(item);
+                featureGeneratorSet.add(item);
                 numFeaturesToAdd--;
             }
         }
-        featureGenerator.setEnabledFeatureGenerators(enabledFeatures);
 
-
-        Set<IndividualFeatureGenerator> featureGeneratorSet = featureGenerator.enabledFeatures();
         while (true) {
+
+            //C_r = recruitMore(s);
             Set<IndividualFeatureGenerator> additions = recruitMore(featureGeneratorSet);
+
+            //if C_r == {} then return S
             if (additions.isEmpty())
                 return;
 
+            //S' = shakeOff(S + C_r)
             Set<IndividualFeatureGenerator> updatedFeatureGeneratorSet = shakeOff(
                     Sets.union(featureGeneratorSet, additions));
 
+            //if scr(M(S)) ≥ scr(M(S′)) then return S
             if (argumentTrainAndScore(featureGeneratorSet) > argumentTrainAndScore(updatedFeatureGeneratorSet))
                 return;
 
+            //S = S'
             featureGeneratorSet = updatedFeatureGeneratorSet;
         }
     }
 
     private double argumentTrainAndScore(Set<IndividualFeatureGenerator> featureGenerators) {
         argumentClassifier.reset();
-        predicateClassifier.reset();
         featureGenerator.setEnabledFeatureGenerators(featureGenerators);
-        train();
+        trainArgumentClassifier(trainingFrames);
         return new Metric(this, testingFrames).argumentF1s().getCount(
                 Metric.TOTAL);
     }
 
     private Set<IndividualFeatureGenerator> recruitMore(Set<IndividualFeatureGenerator> featureGenerators) {
-        Set<IndividualFeatureGenerator> additions = new HashSet<IndividualFeatureGenerator>();
-        Set<IndividualFeatureGenerator> possibleAdditions = featureGenerator.disabledFeatures();
 
+        //C_r = {}
+        Set<IndividualFeatureGenerator> additions = new HashSet<IndividualFeatureGenerator>();
+
+        //p = scr(M(S))
         double originalScore = argumentTrainAndScore(featureGenerators);
 
-        for (IndividualFeatureGenerator possibleAddition : possibleAdditions)
-            if (argumentTrainAndScore(Sets.union(featureGenerators, Collections.singleton(possibleAddition))) > originalScore)
+        //for each f ∈ FT − S
+        for (IndividualFeatureGenerator possibleAddition : featureGenerator.disabledFeatures())
+            //if p < scr(M(S + {f})) then C_r += {f};
+            if (argumentTrainAndScore(Sets.union(featureGenerators, Collections.singleton(possibleAddition)))
+                    > originalScore)
                 additions.add(possibleAddition);
 
         return additions;
     }
 
     private Set<IndividualFeatureGenerator> shakeOff(Set<IndividualFeatureGenerator> featureGeneratorSet) {
+
+        /*
+         * S_max = maxFeatureGenerators
+         * S_0 = originalFeatureGenerators
+         * S = sortedFeatureGenerators & currentFeatureGenerators
+         */
+
         Set<IndividualFeatureGenerator> maxFeatureGenerators =
                 new HashSet<IndividualFeatureGenerator>(featureGeneratorSet);
 
         while (true) {
+            //S_0 = S_max
             Set<IndividualFeatureGenerator> originalFeatureGenerators =
                     new HashSet<IndividualFeatureGenerator>(maxFeatureGenerators);
-            Map<IndividualFeatureGenerator, Double> unsortedFeatureGenerators =
+
+            /**
+             * Keeps a list of feature generators, and the score attained when
+             * the feature generator is not present.
+             */
+            Map<IndividualFeatureGenerator, Double> featureGenAndScoresWO =
                     new HashMap<IndividualFeatureGenerator, Double>();
 
             Set<IndividualFeatureGenerator> currentFeatureGenerators =
                     new HashSet<IndividualFeatureGenerator>(originalFeatureGenerators);
 
+            //track scr(M(S - {f})) for each f ∈ S
             for (IndividualFeatureGenerator generator : originalFeatureGenerators) {
                 currentFeatureGenerators.remove(generator);
-                unsortedFeatureGenerators.put(generator, argumentTrainAndScore(currentFeatureGenerators));
+                featureGenAndScoresWO.put(generator, argumentTrainAndScore(currentFeatureGenerators));
                 currentFeatureGenerators.add(generator);
             }
 
+            //sort S in the descending order of scr(M(S − {f})) for each f ∈ S
+            Set<IndividualFeatureGenerator> sortedFeatureGenerators =
+                    invertedSortByValues(featureGenAndScoresWO).keySet();
 
-            double sMaxScore = 0;
-            boolean maxScoreUpToDate = false;
-            for (Set<IndividualFeatureGenerator> sortedFeatureGenerators =
-                         invertedSortByValues(unsortedFeatureGenerators).keySet();
-                 !sortedFeatureGenerators.isEmpty();
+            double sMaxScore = argumentTrainAndScore(maxFeatureGenerators);
+            ;
+
+            //while (S = S − {f_0}) != {}
+            for (; !sortedFeatureGenerators.isEmpty();
                  sortedFeatureGenerators.remove(Iterables.getFirst(sortedFeatureGenerators, null))) {
 
-                if (!maxScoreUpToDate) {
-                    sMaxScore = argumentTrainAndScore(maxFeatureGenerators);
-                    maxScoreUpToDate = true;
-                }
-
-                if (argumentTrainAndScore(sortedFeatureGenerators) > sMaxScore) {
+                //S_max = argmax_(x∈{Smax; S}) scr(M(x))
+                double score = argumentTrainAndScore(sortedFeatureGenerators);
+                if (score > sMaxScore) {
                     maxFeatureGenerators =
                             new HashSet<IndividualFeatureGenerator>(sortedFeatureGenerators);
-                    maxScoreUpToDate = false;
+                    sMaxScore = score;
                 }
             }
+
+            //if S_0 == S_max then return S_0;
             if (originalFeatureGenerators.equals(maxFeatureGenerators))
                 return originalFeatureGenerators;
         }
     }
 
-    private static <K, V extends Comparable<V>> Map<K, V> invertedSortByValues(final Map<K, V> map) {
+    private static <K, V extends Comparable<V>> Map<K, V> invertedSortByValues(
+            final Map<K, V> map) {
         Comparator<K> valueComparator = new Comparator<K>() {
             @Override
             public int compare(K k1, K k2) {
-                int compare = map.get(k2).compareTo(map.get(k1));
-                if (compare == 0) return 1;
-                else return -compare;
+                int compare = map.get(k1).compareTo(map.get(k2));
+                return compare == 0 ? 1 : -compare;
             }
         };
+
         Map<K, V> sortedByValues = new TreeMap<K, V>(valueComparator);
         sortedByValues.putAll(map);
-        return new LinkedHashMap<K, V>(sortedByValues);
+
+        return sortedByValues;
     }
 
     /**
