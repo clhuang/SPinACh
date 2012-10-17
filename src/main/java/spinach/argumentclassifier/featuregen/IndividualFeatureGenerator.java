@@ -5,11 +5,10 @@ import spinach.sentence.Token;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Map;
 
 /**
- * A class that, given a SemanticFrameSet and a list of featureTokens,
- * generates a collection of features
+ * A class that, given a SemanticFrameSet, a predicate, and an argument,
+ * generates a collection of features.
  */
 public abstract class IndividualFeatureGenerator implements Serializable {
 
@@ -22,18 +21,9 @@ public abstract class IndividualFeatureGenerator implements Serializable {
         this.identifier = identifier;
     }
 
-    abstract Collection<String> featuresOf(SemanticFrameSet frameSet, Map<String, Token> featureTokens);
+    abstract Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument);
 
-    private final String identifier;
-
-    /**
-     * Returns the identifier of this IndividualFeatureGenerator.
-     *
-     * @return identifier
-     */
-    public String getIdentifier() {
-        return identifier;
-    }
+    public final String identifier;
 
     public boolean equals(Object o) {
         if (o == null)

@@ -1,6 +1,6 @@
 package spinach.argumentclassifier.featuregen;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import spinach.argumentclassifier.ArgumentClassifier;
 import spinach.sentence.SemanticFrameSet;
@@ -17,9 +17,6 @@ import java.util.*;
 public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
 
     private static final long serialVersionUID = -6330635591411786608L;
-
-    private static final String ARGUMENT = "argument";
-    private static final String PREDICATE = "predicate";
 
     private Set<IndividualFeatureGenerator> enabledFeatures;
     private final Set<IndividualFeatureGenerator> featureGeneratorSet =
@@ -38,37 +35,26 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
                                             Token argument, Token predicate) {
 
         Collection<String> features = super.featuresOf(sentence, argument, predicate);
-        Map<String, Token> featureTokens = new HashMap<String, Token>();
-        /* featureToken tokens:
-        argument
-        predicate
-        ppHead
-         */
-
-        featureTokens.put(ARGUMENT, argument);
-        featureTokens.put(PREDICATE, predicate);
-
 
         for (IndividualFeatureGenerator featureGenerator : enabledFeatures) {
             Collection<String> newFeatures = featureGenerator.
-                    featuresOf(sentence, featureTokens);
+                    featuresOf(sentence, predicate, argument);
             if (newFeatures != null)
                 features.addAll(newFeatures);
         }
 
         return features;
-
     }
 
     /**
-     * Disables all extra features
+     * Disables all extra features.
      */
     public void clearFeatures() {
         enabledFeatures.clear();
     }
 
     /**
-     * Adds some feature generator to the list of feature generators
+     * Adds some feature generator to the list of feature generators.
      *
      * @param featureGenerator feature generator to be added
      * @return index of feature generator in list
@@ -82,22 +68,32 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
         addFeature(new IndividualFeatureGenerator("existSemDeprel") {
 
             @Override
-            public Collection<String> featuresOf(SemanticFrameSet frameSet,
-                                                 Map<String, Token> featureTokens) {
+            Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+                Set<String> features = new HashSet<String>();
+
+                for (String argLabel : frameSet.argumentsOf(predicate).values())
+                    features.add("prevSR|" + argLabel);
+
+                return features;
+            }
+        });
+
+        addFeature(new IndividualFeatureGenerator("existCross") {
+            @Override
+            Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
                 //TODO
-                return null;
+                return null;  //To change body of implemented methods use File | Settings | File Templates.
             }
         });
 
         addFeature(new IndividualFeatureGenerator("previousArgClass") {
 
             @Override
-            public Collection<String> featuresOf(SemanticFrameSet frameSet, Map<String, Token> featureTokens) {
+            Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
 
                 int mostRecentArgumentIndex = -1;
                 String mostRecentLabel = null;
 
-                Token predicate = featureTokens.get(PREDICATE);
                 for (Map.Entry<Token, String> pair : frameSet.argumentsOf(predicate).entrySet()) {
                     int currIndex = pair.getKey().sentenceIndex;
                     if (currIndex > mostRecentArgumentIndex) {
@@ -107,22 +103,19 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
                 }
 
                 if (mostRecentLabel == null)
-                    return Collections.singletonList("previousArgClass:" + ArgumentClassifier.NIL_LABEL);
+                    return Collections.singleton("previousArgClass:" + ArgumentClassifier.NIL_LABEL);
                 else
-                    return Collections.singletonList("previousArgClass:" + mostRecentLabel);
+                    return Collections.singleton("previousArgClass:" + mostRecentLabel);
             }
 
         });
 
         addFeature(new IndividualFeatureGenerator("linePath") {
             @Override
-            Collection<String> featuresOf(SemanticFrameSet frameSet, Map<String, Token> featureTokens) {
+            Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
                 StringBuilder linePathF = new StringBuilder("linePathF|");
                 StringBuilder linePathL = new StringBuilder("linePathL|");
                 StringBuilder linePathD = new StringBuilder("linePathD|");
-
-                Token argument = featureTokens.get(ARGUMENT);
-                Token predicate = featureTokens.get(PREDICATE);
 
                 Token start;
                 Token end;
@@ -142,7 +135,7 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
                     linePathD.append(t.syntacticHeadRelation).append(" ");
                 }
 
-                return new ImmutableList.Builder<String>().add(linePathF.toString(),
+                return new ImmutableSet.Builder<String>().add(linePathF.toString(),
                         linePathL.toString(),
                         linePathD.toString()).build();
             }
@@ -150,21 +143,35 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
 
         addFeature(new IndividualFeatureGenerator("dpTreeRelation") {
             @Override
-            Collection<String> featuresOf(SemanticFrameSet frameSet, Map<String, Token> featureTokens) {
-                //TODO
-                return null;
+            Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+                if (frameSet.getParent(predicate).equals(argument))
+                    return Collections.singleton("treeRel|PChild");
+
+                if (frameSet.getParent(argument).equals(predicate))
+                    return Collections.singleton("treeRel|AChild");
+
+                for (Token t = frameSet.getParent(argument); t != null; t = frameSet.getParent(t))
+                    if (t.equals(predicate))
+                        return Collections.singleton("treeRel|ADesc");
+
+                for (Token t = frameSet.getParent(predicate); t != null; t = frameSet.getParent(t))
+                    if (t.equals(argument))
+                        return Collections.singleton("treeRel|PDesc");
+
+                if (frameSet.getSiblings(predicate).contains(argument))
+                    return Collections.singleton("treeRel|siblings");
+
+                return Collections.singleton("treeRel|none");
             }
         });
 
         addFeature(new IndividualFeatureGenerator("hi/lo support") {
             @Override
-            Collection<String> featuresOf(SemanticFrameSet frameSet, Map<String, Token> featureTokens) {
+            Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
                 Token hiVerb = Token.emptyToken;
                 Token loVerb = Token.emptyToken;
                 Token hiNoun = Token.emptyToken;
                 Token loNoun = Token.emptyToken;
-
-                Token argument = featureTokens.get(ARGUMENT);
 
                 for (Token token : frameSet.ancestorPath(argument, frameSet.getRoot())) {
                     if (token.isNoun()) {
@@ -180,7 +187,7 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
                     }
                 }
 
-                return new ImmutableList.Builder<String>().add(
+                return new ImmutableSet.Builder<String>().add(
                         "argHiNF|" + hiNoun.form,
                         "argHiNL|" + hiNoun.lemma,
                         "argHiNP|" + hiNoun.pos,
@@ -199,10 +206,39 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
 
         addFeature(new IndividualFeatureGenerator("isArgLeaf") {
             @Override
-            Collection<String> featuresOf(SemanticFrameSet frameSet, Map<String, Token> featureTokens) {
-                return Collections.singletonList(frameSet.getChildren(featureTokens.get(ARGUMENT)).isEmpty() ?
+            Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+                return Collections.singleton(frameSet.getChildren(argument).isEmpty() ?
                         "argLeaf" :
                         "argNotLeaf");
+            }
+        });
+
+        addFeature(new IndividualFeatureGenerator("dpPathLemma") {
+            @Override
+            Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+                StringBuilder s = new StringBuilder("PAPathLs|");
+
+                for (Token t : frameSet.syntacticPath(predicate, argument))
+                    s.append(t.lemma).append(" ");
+
+                return Collections.singleton(s.toString());
+            }
+        });
+
+        addFeature(new IndividualFeatureGenerator("T9Combo") {
+            @Override
+            Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+                Token argHead = frameSet.getParent(argument);
+
+                if (argHead == null)
+                    argHead = Token.emptyToken;
+
+                return new ImmutableSet.Builder<String>().add(
+                        "aL+pL|" + argument.lemma + " " + predicate.lemma,
+                        "aL+aD+ahL|" + argument.lemma + " " + argument.syntacticHeadRelation + " " + argHead.lemma,
+                        "pD|" + predicate.syntacticHeadRelation
+                ).build();
+
             }
         });
     }
