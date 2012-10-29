@@ -188,7 +188,7 @@ public class TokenSentence implements Iterable<Token> {
     /**
      * Find the path along the syntactic tree between some token and some ancestor of that token
      *
-     * @param a the beginning token
+     * @param a        the beginning token
      * @param ancestor some ancestor of a
      * @return a deque starting from a, going from token to head and ending at ancestor
      */
@@ -200,7 +200,7 @@ public class TokenSentence implements Iterable<Token> {
         while (!currentToken.equals(ancestor)) {
             currentToken = getParent(currentToken);
             if (currentToken == null)
-                throw new IllegalArgumentException("Ancestor is not ancestor of provided token");
+                break;
             path.add(currentToken);
         }
 
@@ -288,13 +288,13 @@ public class TokenSentence implements Iterable<Token> {
         return "active";
     }
 
-    private static final Set<String> beVerbForms = new ImmutableSet.Builder<String>().add(
-            "be", "am", "is", "was", "are", "were", "been", "being"
-    ).build();
-
-    private static final Set<String> getVerbForms = new ImmutableSet.Builder<String>().add(
+    private static final Set<String> getVerbForms = ImmutableSet.of(
             "get", "got", "gotten", "getting", "geting", "gets"
-    ).build();
+    );
+
+    private static final Set<String> beVerbForms = ImmutableSet.of(
+            "be", "am", "is", "was", "are", "were", "been", "being"
+    );
 
     private static boolean isBeVerb(Token t) {
         return beVerbForms.contains(t.form.toLowerCase());

@@ -38,6 +38,8 @@ public class StructuredClassifier implements GEN {
     private static final int TRAIN_ARGUMENT_C = 2;
     private transient int trainingMode;
 
+    private boolean VERBOSE = true;
+
     /**
      * When training argument classifier, use predicted predicates or gold predicates?
      */
@@ -163,7 +165,7 @@ public class StructuredClassifier implements GEN {
             for (SemanticFrameSet goldFrame : goldFramesCopy) {
                 j++;
                 train(goldFrame);
-                if (j % 5000 == 0)
+                if (j % 5000 == 0 && VERBOSE)
                     System.out.println("Trained " + j + " sentences of " + trainingFrames.size() + " | " +
                             df.format(new Date()));
             }
@@ -261,12 +263,23 @@ public class StructuredClassifier implements GEN {
         }
     }
 
+    private Map<Set<IndividualFeatureGenerator>, Double> calculatedF1s =
+            new HashMap<Set<IndividualFeatureGenerator>, Double>();
+
+
     private double argumentTrainAndScore(Set<IndividualFeatureGenerator> featureGenerators) {
+        if (calculatedF1s.containsKey(featureGenerators))
+            return calculatedF1s.get(featureGenerators);
+
         argumentClassifier.reset();
         featureGenerator.setEnabledFeatureGenerators(featureGenerators);
         trainArgumentClassifier(trainingFrames);
-        return new Metric(this, testingFrames).argumentF1s().getCount(
-                Metric.TOTAL);
+
+        double f1 = new Metric(this, testingFrames).argumentF1s().getCount(Metric.TOTAL);
+
+        calculatedF1s.put(featureGenerators, f1);
+
+        return f1;
     }
 
     private Set<IndividualFeatureGenerator> recruitMore(Set<IndividualFeatureGenerator> featureGenerators) {
@@ -325,7 +338,6 @@ public class StructuredClassifier implements GEN {
                     invertedSortByValues(featureGenAndScoresWO).keySet();
 
             double sMaxScore = argumentTrainAndScore(maxFeatureGenerators);
-            ;
 
             //while (S = S − {f_0}) != {}
             for (; !sortedFeatureGenerators.isEmpty();

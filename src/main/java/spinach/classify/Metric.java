@@ -22,7 +22,7 @@ public class Metric {
 
     public final static String TOTAL = "TOTAL";
 
-    private static final boolean PREDICTED_PRED_DURING_ARG_TESTING = false;
+    private static final boolean PREDICTED_PRED_DURING_ARG_TESTING = true;
 
     private int correctPredicateNum;
     private int goldPredicateNum;
@@ -55,9 +55,9 @@ public class Metric {
         goldPredicateNum = 0;
         predictedPredicateNum = 0;
 
-        correctArguments = new ClassicCounter<String>();
-        predictedArguments = new ClassicCounter<String>();
-        goldArguments = new ClassicCounter<String>();
+        correctArguments.clear();
+        predictedArguments.clear();
+        goldArguments.clear();
 
         for (SemanticFrameSet goldFrameSet : goldFrameSets) {
             SemanticFrameSet predictedFrameSet = gen.parse(goldFrameSet);
@@ -95,6 +95,7 @@ public class Metric {
                         correctArguments.incrementCount(correctEntry.getValue());
                         correctArguments.incrementCount(TOTAL);
                     }
+
             } else {
 
                 SemanticFrameSet argPredictedFrameSet = gen.argParse(goldFrameSet);

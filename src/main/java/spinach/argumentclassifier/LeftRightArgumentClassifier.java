@@ -1,13 +1,17 @@
 package spinach.argumentclassifier;
 
+import com.google.common.collect.Sets;
+import edu.stanford.nlp.stats.ClassicCounter;
 import edu.stanford.nlp.stats.Counter;
+import edu.stanford.nlp.stats.Counters;
 import spinach.argumentclassifier.featuregen.ArgumentFeatureGenerator;
 import spinach.classifier.PerceptronClassifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 import spinach.sentence.TokenSentenceAndPredicates;
 
-import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 
 public class LeftRightArgumentClassifier extends ArgumentClassifier {
@@ -17,62 +21,56 @@ public class LeftRightArgumentClassifier extends ArgumentClassifier {
     }
 
     @Override
-    public SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates) {
-        return framesWithArguments(sentenceAndPredicates, false);
-    }
+    protected SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates, boolean training) {
 
-    @Override
-    public SemanticFrameSet trainingFramesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates) {
-        return framesWithArguments(sentenceAndPredicates, true);
-    }
-
-
-    private SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates, boolean training) {
         SemanticFrameSet frameSet = new SemanticFrameSet(sentenceAndPredicates);
-        frameSet.addPredicates(sentenceAndPredicates.getPredicateList());
-
-        Set<String> previousLabels = new HashSet<String>();
-        Set<Token> restrictedArgs = new HashSet<Token>();
 
         for (Token predicate : frameSet.getPredicateList()) {
+            Map<Token, Counter<String>> argumentLabelScores =
+                    new LinkedHashMap<Token, Counter<String>>();
 
-            nextArgument:
-            for (Token argument : argumentCandidates(frameSet, predicate)) {
+            for (Token possibleArg :
+                    ArgumentClassifier.argumentCandidates(sentenceAndPredicates, predicate)) {
+                Counter<String> argClassScores = new ClassicCounter<String>(classifier.indexedLabels());
 
-                Counter<String> argClassScores;
-                if (training)
-                    argClassScores = trainingArgClassScores(frameSet, argument, predicate);
-                else
-                    argClassScores = argClassScores(frameSet, argument, predicate);
-
-                for (String label : sortArgLabels(argClassScores)) {
-                    if (label.equals(ArgumentClassifier.NIL_LABEL)) {
-                        continue nextArgument;
-                    }
-
-                    if (label.equals("SU") || label.startsWith("AM-")) {
-                        frameSet.addArgument(predicate, argument, label);
-                        continue nextArgument;
-                    }
-
-                    if (previousLabels.contains(label))
-                        continue;
-
-                    if (!restrictedArgs.contains(argument)) {
-                        restrictedArgs.addAll(frameSet.getAncestors(argument));
-                        restrictedArgs.addAll(frameSet.getDescendants(argument));
-                        frameSet.addArgument(predicate, argument, label);
-                        if (label.matches("A[0-9]"))
-                            previousLabels.add(label);
-                        continue nextArgument;
-                    }
-                }
-
+                argumentLabelScores.put(possibleArg, argClassScores);
             }
 
+            for (Token possibleArg : argumentLabelScores.keySet()) {
+
+                updateCounterScores(frameSet, possibleArg, predicate, argumentLabelScores.get(possibleArg), training);
+                String argLabel = Counters.argmax(argumentLabelScores.get(possibleArg));
+
+                if (argLabel != null && !argLabel.equals("NIL"))
+                    frameSet.addArgument(predicate, possibleArg, argLabel);
+                else
+                    continue;
+
+                if (isRestrictedLabel(argLabel)) {
+
+                    Set<Token> restrictedTokens = frameSet.getDescendants(possibleArg);
+                    restrictedTokens.addAll(frameSet.getAncestors(possibleArg));
+
+                    for (Token t : Sets.intersection(argumentLabelScores.keySet(), restrictedTokens)) {
+                        Counter<String> tokenLabelScores = argumentLabelScores.get(t);
+                        Counter<String> updatedScores = new ClassicCounter<String>();
+
+                        for (Map.Entry<String, Double> e : tokenLabelScores.entrySet()) {
+                            String label = e.getKey();
+                            if (!isRestrictedLabel(label))
+                                updatedScores.setCount(label, e.getValue());
+                        }
+                    }
+                } else if (argLabel.matches("A[0-9]"))
+                    for (Token token : argumentLabelScores.keySet())
+                        argumentLabelScores.get(token).remove(argLabel);
+            }
         }
 
         return frameSet;
+    }
 
+    private boolean isRestrictedLabel(String label) {
+        return !(ArgumentClassifier.NIL_LABEL.equals(label) || "SU".equals(label) || label.startsWith("AM-"));
     }
 }

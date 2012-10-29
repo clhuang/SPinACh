@@ -51,6 +51,8 @@ public class Token {
     }
 
     public boolean equals(Object o) {
+        if (o == null)
+            return false;
         if (o == this)
             return true;
         if (o.getClass() != getClass())

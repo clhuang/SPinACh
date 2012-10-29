@@ -24,8 +24,8 @@ public class PerceptronClassifier implements Classifier, Serializable {
     private static final double ARRAY_INCREMENT_FACTOR = 2;
 
     private boolean autoUpdateWeights;
-    private int burnInPeriod = 0;
-    private int totalIterationCount = 0;
+    private int burnInPeriod;
+    private int totalIterationCount;
 
     /**
      * Each unique feature is assigned a number, as defined in the index.
@@ -374,10 +374,27 @@ public class PerceptronClassifier implements Classifier, Serializable {
     public Counter<String> trainingScores(Datum<String, String> datum) {
         Counter<String> scores = new ClassicCounter<String>();
         Set<Integer> featureCounts = featuresOf(datum);
-        for (int i = 0; i < labelIndex.size(); i++)
-            scores.incrementCount(labelIndex.get(i),
-                    zWeights.get(i).trainingDotProduct(featureCounts));
+        for (LabelWeights l : zWeights)
+            scores.incrementCount(l.label,
+                    l.trainingDotProduct(featureCounts));
         return scores;
+    }
+
+    /**
+     * Updates a counter to reflect the correct scores for a datum.
+     *
+     * @param datum    datum to consider
+     * @param scores   Counter to update--does not add additional labels
+     * @param training whether or not this is in training mode
+     */
+    public void updateCounterScores(Datum<String, String> datum, Counter<String> scores, boolean training) {
+        Set<Integer> featureCounts = featuresOf(datum);
+        int index;
+        for (String label : scores.keySet()) {
+            if ((index = labelIndex.indexOf(label)) >= 0)
+                scores.setCount(label, training ? zWeights.get(index).trainingDotProduct(featureCounts) :
+                        zWeights.get(index).avgDotProduct(featureCounts));
+        }
     }
 
     /**
@@ -428,4 +445,12 @@ public class PerceptronClassifier implements Classifier, Serializable {
         burnInPeriod = numIterations;
     }
 
+    /**
+     * Returns a list of labels that this classifier has encountered.
+     *
+     * @return list of labels
+     */
+    public List<String> indexedLabels() {
+        return Collections.unmodifiableList(labelIndex.objectsList());
+    }
 }

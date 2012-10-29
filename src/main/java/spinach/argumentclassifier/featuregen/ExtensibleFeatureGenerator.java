@@ -18,7 +18,7 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
 
     private static final long serialVersionUID = -6330635591411786608L;
 
-    private Set<IndividualFeatureGenerator> enabledFeatures;
+    private Set<IndividualFeatureGenerator> enabledFeatures = new HashSet<IndividualFeatureGenerator>();
     private final Set<IndividualFeatureGenerator> featureGeneratorSet =
             new HashSet<IndividualFeatureGenerator>();
 
@@ -28,6 +28,8 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
      */
     public ExtensibleFeatureGenerator() {
         addDefaultFeatures();
+
+        enabledFeatures.addAll(featureGeneratorSet());
     }
 
     @Override
@@ -81,8 +83,29 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
         addFeature(new IndividualFeatureGenerator("existCross") {
             @Override
             Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
-                //TODO
-                return null;  //To change body of implemented methods use File | Settings | File Templates.
+                for (Token otherPredicate : frameSet.getPredicateList()) {
+                    if (otherPredicate.equals(predicate) || otherPredicate.equals(argument))
+                        continue;
+                    for (Token otherArg : frameSet.argumentsOf(predicate).keySet()) {
+                        if (otherArg.equals(predicate) || otherArg.equals(argument))
+                            continue;
+                        if (existCross(predicate, argument, otherPredicate, otherArg))
+                            return Collections.singleton("existX:yes");
+                    }
+                }
+
+                return Collections.singleton("existX:no");
+            }
+
+            private boolean existCross(Token predicate1, Token argument1,
+                                       Token predicate2, Token argument2) {
+                return (liesBetween(predicate1, predicate2, argument2) !=
+                        liesBetween(argument1, predicate2, argument2));
+            }
+
+            private boolean liesBetween(Token a, Token b, Token c) {
+                return ((a.comesBefore(b) && c.comesBefore(a)) ||
+                        (a.comesBefore(c) && b.comesBefore(a)));
             }
         });
 
@@ -128,34 +151,34 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
                     end = predicate;
                 }
 
-                for (Token t = start; !end.comesBefore(t);
+                for (Token t = start; t.comesBefore(end);
                      t = frameSet.tokenAt(t.sentenceIndex + 1)) {
                     linePathF.append(t.form).append(" ");
                     linePathL.append(t.lemma).append(" ");
                     linePathD.append(t.syntacticHeadRelation).append(" ");
                 }
 
-                return new ImmutableSet.Builder<String>().add(linePathF.toString(),
+                return ImmutableSet.of(linePathF.toString(),
                         linePathL.toString(),
-                        linePathD.toString()).build();
+                        linePathD.toString());
             }
         });
 
         addFeature(new IndividualFeatureGenerator("dpTreeRelation") {
             @Override
             Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
-                if (frameSet.getParent(predicate).equals(argument))
+                if (argument.equals(frameSet.getParent(predicate)))
                     return Collections.singleton("treeRel|PChild");
 
-                if (frameSet.getParent(argument).equals(predicate))
+                if (predicate.equals(frameSet.getParent(argument)))
                     return Collections.singleton("treeRel|AChild");
 
                 for (Token t = frameSet.getParent(argument); t != null; t = frameSet.getParent(t))
-                    if (t.equals(predicate))
+                    if (predicate.equals(t))
                         return Collections.singleton("treeRel|ADesc");
 
                 for (Token t = frameSet.getParent(predicate); t != null; t = frameSet.getParent(t))
-                    if (t.equals(argument))
+                    if (argument.equals(t))
                         return Collections.singleton("treeRel|PDesc");
 
                 if (frameSet.getSiblings(predicate).contains(argument))
@@ -187,7 +210,7 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
                     }
                 }
 
-                return new ImmutableSet.Builder<String>().add(
+                return ImmutableSet.of(
                         "argHiNF|" + hiNoun.form,
                         "argHiNL|" + hiNoun.lemma,
                         "argHiNP|" + hiNoun.pos,
@@ -200,7 +223,7 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
                         "argLoVF|" + loVerb.form,
                         "argLoVL|" + loVerb.lemma,
                         "argLoVP|" + loVerb.pos
-                ).build();
+                );
             }
         });
 
@@ -233,12 +256,11 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
                 if (argHead == null)
                     argHead = Token.emptyToken;
 
-                return new ImmutableSet.Builder<String>().add(
+                return ImmutableSet.of(
                         "aL+pL|" + argument.lemma + " " + predicate.lemma,
                         "aL+aD+ahL|" + argument.lemma + " " + argument.syntacticHeadRelation + " " + argHead.lemma,
                         "pD|" + predicate.syntacticHeadRelation
-                ).build();
-
+                );
             }
         });
     }

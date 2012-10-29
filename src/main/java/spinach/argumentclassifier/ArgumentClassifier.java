@@ -23,7 +23,7 @@ import java.util.*;
  */
 public abstract class ArgumentClassifier implements Serializable {
 
-    private final PerceptronClassifier classifier;
+    protected final PerceptronClassifier classifier;
     private final ArgumentFeatureGenerator featureGenerator;
 
     public final static String NIL_LABEL = "NIL";
@@ -45,7 +45,9 @@ public abstract class ArgumentClassifier implements Serializable {
      * @param sentenceAndPredicates sentence with predicates
      * @return initial sentence with predicates with added arguments
      */
-    public abstract SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates);
+    public SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates) {
+        return framesWithArguments(sentenceAndPredicates, false);
+    }
 
     /**
      * Constructs a SemanticFrameSet from a sentence with predicates with training weights
@@ -54,7 +56,12 @@ public abstract class ArgumentClassifier implements Serializable {
      * @param sentenceAndPredicates sentence with predicates
      * @return initial sentence with predicates with added arguments
      */
-    public abstract SemanticFrameSet trainingFramesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates);
+    public SemanticFrameSet trainingFramesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates) {
+        return framesWithArguments(sentenceAndPredicates, true);
+    }
+
+    protected abstract SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates,
+                                                            boolean training);
 
     /**
      * Returns all the possible argument candidates for a given sentence and predicate
@@ -111,19 +118,9 @@ public abstract class ArgumentClassifier implements Serializable {
         return classifier.trainingScores(featureGenerator.datumFrom(frameSet, possibleArg, predicate));
     }
 
-    static List<String> sortArgLabels(Counter<String> argCounter) {
-        List<Map.Entry<String, Double>> list = new LinkedList<Map.Entry<String, Double>>(argCounter.entrySet());
-        Collections.sort(list, new Comparator<Map.Entry<String, Double>>() {
-            @Override
-            public int compare(Map.Entry<String, Double> o1, Map.Entry<String, Double> o2) {
-                return (o2.getValue())
-                        .compareTo(o1.getValue());
-            }
-        });
-        List<String> sortedLabels = new ArrayList<String>();
-        for (Map.Entry<String, Double> entry : list)
-            sortedLabels.add(entry.getKey());
-        return sortedLabels;
+    protected void updateCounterScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate,
+                                       Counter<String> scores, boolean training) {
+        classifier.updateCounterScores(featureGenerator.datumFrom(frameSet, possibleArg, predicate), scores, training);
     }
 
     /**

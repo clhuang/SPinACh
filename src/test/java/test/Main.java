@@ -2,7 +2,7 @@ package test;
 
 import spinach.CorpusUtils;
 import spinach.argumentclassifier.ArgumentClassifier;
-import spinach.argumentclassifier.EasyFirstArgumentClassifier;
+import spinach.argumentclassifier.LeftRightArgumentClassifier;
 import spinach.argumentclassifier.featuregen.ArgumentFeatureGenerator;
 import spinach.classifier.PerceptronClassifier;
 import spinach.classify.Metric;
@@ -27,8 +27,8 @@ public class Main {
         argumentClassifierPerceptron.setBurnInPeriod(800000);
 
         ArgumentClassifier argumentClassifier =
-                //StructuredClassifier.importArgumentClassifier("src/test/resources/argumentClassifierA.gz");
-                new EasyFirstArgumentClassifier(argumentClassifierPerceptron, argumentFeatureGenerator);
+                //StructuredClassifier.importArgumentClassifier("src/test/resources/argumentClassifierB.gz");
+                new LeftRightArgumentClassifier(argumentClassifierPerceptron, argumentFeatureGenerator);
 
         /*PredicateFeatureGenerator predicateFeatureGenerator = new PredicateFeatureGenerator();
         predicateFeatureGenerator.reduceFeatureSet(frameSets);
@@ -52,16 +52,13 @@ public class Main {
         List<SemanticFrameSet> testFrameSets = CorpusUtils.parseCorpus("src/test/resources/devel.closed");
         System.out.println("parsed devel corpus");
 
-        /*for (int i = 0; i < predicateClassifierPerceptron.featureIndex.size(); i++)
-            System.out.println(predicateClassifierPerceptron.featureIndex.get(i) +
-                    " " + predicateClassifierPerceptron.zWeights.get(0).weights[i] +
-                    " " + predicateClassifierPerceptron.zWeights.get(0).avgWeights[i] +
-                    " " + predicateClassifierPerceptron.zWeights.get(0).lastUpdateIteration[i] +
-                    " " + predicateClassifierPerceptron.zWeights.get(0).currentIteration);
-
-        System.exit(0);*/
+        /*classifier.trainArgumentFeatureGenerator(frameSets, testFrameSets);
+        for (IndividualFeatureGenerator f :
+                ((ExtensibleFeatureGenerator) argumentFeatureGenerator).enabledFeatures())
+            System.out.println(f.identifier);*/
 
         Metric m = new Metric(classifier, testFrameSets);
+        m.recalculateScores();
 
         System.out.format("Predicates %d %d %d\n", m.predicateCorrect(), m.predicatePredicted(), m.predicateGold());
 
