@@ -6,25 +6,28 @@ import spinach.argumentclassifier.LeftRightArgumentClassifier;
 import spinach.argumentclassifier.featuregen.ArgumentFeatureGenerator;
 import spinach.classifier.PerceptronClassifier;
 import spinach.classify.Metric;
-import spinach.classify.StructuredClassifier;
+import spinach.classify.UnstructuredClassifier;
 import spinach.predicateclassifier.PredicateClassifier;
 import spinach.sentence.SemanticFrameSet;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.TreeSet;
 
-public class Main {
-    public static void main(String[] args) {
+import static test.TestConstants.*;
 
-        List<SemanticFrameSet> frameSets = CorpusUtils.parseCorpus("src/test/resources/train.closed");
+public class UnstructuredTest {
+    public static void main(String[] args) throws IOException, ClassNotFoundException {
+
+        List<SemanticFrameSet> frameSets = CorpusUtils.parseCorpus(TRAIN_CORPUS);
 
         ArgumentFeatureGenerator argumentFeatureGenerator = new ArgumentFeatureGenerator();
         argumentFeatureGenerator.reduceFeatureSet(frameSets);
         PerceptronClassifier argumentClassifierPerceptron =
                 new PerceptronClassifier(argumentFeatureGenerator.getAllowedNonStructuralFeatures(),
-                        ArgumentClassifier.getLabelSet(frameSets), 10);
+                        ArgumentClassifier.getLabelSet(frameSets), NUM_EPOCHS);
 
-        argumentClassifierPerceptron.setBurnInPeriod(800000);
+        argumentClassifierPerceptron.setBurnInPeriod(BURN_IN_PERIOD);
 
         ArgumentClassifier argumentClassifier =
                 //StructuredClassifier.importArgumentClassifier("src/test/resources/argumentClassifierB.gz");
@@ -36,20 +39,20 @@ public class Main {
                 new PerceptronClassifier(predicateFeatureGenerator.getAllowedNonStructuralFeatures(),
                         PredicateClassifier.getLabelSet(), 10);*/
         PredicateClassifier predicateClassifier =
-                StructuredClassifier.importPredicateClassifier("src/test/resources/predicateClassifierA.gz");
+                PredicateClassifier.importClassifier("src/test/resources/predicateClassifierA.gz");
         //new PredicateClassifier(predicateClassifierPerceptron, predicateFeatureGenerator);
 
-        StructuredClassifier classifier = new StructuredClassifier(argumentClassifier, predicateClassifier, 10);
+        UnstructuredClassifier classifier = new UnstructuredClassifier(argumentClassifier, predicateClassifier, 1, frameSets);
 
         //classifier.trainPredicateClassifier(frameSets);
-        classifier.trainArgumentClassifier(frameSets);
+        classifier.trainArgumentClassifier();
 
-        classifier.exportArgumentClassifier("src/test/resources/argumentClassifierB.gz");
+        argumentClassifier.exportClassifier("src/test/resources/argumentClassifierB.gz");
         //classifier.exportPredicateClassifier("src/test/resources/predicateClassifierA.gz");
 
         System.out.println("Exported classifiers");
 
-        List<SemanticFrameSet> testFrameSets = CorpusUtils.parseCorpus("src/test/resources/devel.closed");
+        List<SemanticFrameSet> testFrameSets = CorpusUtils.parseCorpus(DEVEL_CORPUS);
         System.out.println("parsed devel corpus");
 
         /*classifier.trainArgumentFeatureGenerator(frameSets, testFrameSets);
