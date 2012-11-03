@@ -8,8 +8,11 @@ import spinach.sentence.Token;
 import spinach.sentence.TokenSentence;
 import spinach.sentence.TokenSentenceAndPredicates;
 
-import java.io.Serializable;
+import java.io.*;
+import java.util.Collection;
 import java.util.List;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * Given a sentence, a PredicateClassifier classifies the predicates of that sentence
@@ -124,5 +127,68 @@ public class PredicateClassifier implements Serializable {
      */
     public void updateAverageWeights() {
         classifier.updateAverageWeights();
+    }
+
+    /**
+     * Generates a dataset (to be used in training) for a given frameset
+     *
+     * @param frameSet frameset to analyze
+     * @return Dataset with features generated from the frameset
+     */
+    private Dataset<String, String> datasetFrom(TokenSentenceAndPredicates frameSet) {
+        Dataset<String, String> dataset = new Dataset<String, String>();
+        for (Token predicate : frameSet.getPredicateList()) {
+
+            BasicDatum<String, String> datum =
+                    (BasicDatum<String, String>) featureGenerator.datumFrom(frameSet, predicate);
+
+            datum.setLabel(frameSet.isPredicate(predicate) ? PREDICATE_LABEL :
+                    NOT_PREDICATE_LABEL);
+            dataset.add(datum);
+        }
+
+        return dataset;
+    }
+
+    /**
+     * Trains on a bunch of SemanticFrameSets.
+     *
+     * @param frameSets Collection of framesets to generate a dataset
+     */
+    public void unstructuredTrain(Collection<? extends TokenSentenceAndPredicates> frameSets) {
+        Dataset<String, String> dataset = new Dataset<String, String>();
+        for (TokenSentenceAndPredicates frameSet : frameSets)
+            dataset.addAll(datasetFrom(frameSet));
+
+        dataset.applyFeatureCountThreshold(3);
+
+        classifier.train(dataset);
+    }
+
+    /**
+     * Loads a predicate classifier.
+     *
+     * @param filePath file to load classifier from
+     * @return imported classifier
+     */
+    public static PredicateClassifier importClassifier(String filePath)
+            throws IOException, ClassNotFoundException {
+        ObjectInputStream in = new ObjectInputStream(new BufferedInputStream(
+                new GZIPInputStream(new FileInputStream(filePath))));
+
+        return (PredicateClassifier) in.readObject();
+    }
+
+    /**
+     * Saves this classifier's predicate classifier.
+     *
+     * @param filePath file to save classifier to
+     */
+    public void exportClassifier(String filePath) throws IOException {
+        ObjectOutputStream out = new ObjectOutputStream(new BufferedOutputStream(
+                new GZIPOutputStream(new FileOutputStream(filePath))));
+
+        out.writeObject(this);
+        out.close();
     }
 }

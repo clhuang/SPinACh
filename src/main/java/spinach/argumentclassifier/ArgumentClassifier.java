@@ -11,8 +11,10 @@ import spinach.sentence.Token;
 import spinach.sentence.TokenSentence;
 import spinach.sentence.TokenSentenceAndPredicates;
 
-import java.io.Serializable;
+import java.io.*;
 import java.util.*;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * ArgumentClassifiers, given a sentence and a set of predicates,
@@ -151,19 +153,18 @@ public abstract class ArgumentClassifier implements Serializable {
     }
 
     /**
-     * Generates a dataset (to be used in training) from a bunch of SemanticFrameSets.
+     * Trains on a bunch of SemanticFrameSets.
      *
      * @param frameSets Collection of framesets to generate a dataset
-     * @return Dataset with features generated from the collection of frames
      */
-    public Dataset<String, String> datasetFrom(Collection<SemanticFrameSet> frameSets) {
+    public void unstructuredTrain(Collection<SemanticFrameSet> frameSets) {
         Dataset<String, String> dataset = new Dataset<String, String>();
         for (SemanticFrameSet frameSet : frameSets)
             dataset.addAll(datasetFrom(frameSet));
 
         dataset.applyFeatureCountThreshold(3);
 
-        return dataset;
+        classifier.train(dataset);
     }
 
     /**
@@ -271,5 +272,38 @@ public abstract class ArgumentClassifier implements Serializable {
                 labels.addAll(s.argumentsOf(predicate).values());
 
         return labels;
+    }
+
+    /**
+     * Loads an argument classifier.
+     *
+     * @param filePath file to load classifier from
+     * @return imported classifier
+     */
+    public static ArgumentClassifier importClassifier(String filePath)
+            throws IOException, ClassNotFoundException {
+        ObjectInputStream in = new ObjectInputStream(new BufferedInputStream(
+                new GZIPInputStream(new FileInputStream(filePath))));
+
+        return (ArgumentClassifier) in.readObject();
+    }
+
+    /**
+     * Saves this argument classifier.
+     *
+     * @param filePath file to save classifier to
+     */
+    public void exportClassifier(String filePath) {
+        ObjectOutputStream out;
+
+        try {
+            out = new ObjectOutputStream(new BufferedOutputStream(
+                    new GZIPOutputStream(new FileOutputStream(filePath))));
+
+            out.writeObject(this);
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
