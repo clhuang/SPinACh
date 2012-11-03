@@ -2,6 +2,7 @@ package spinach.sentence;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ListMultimap;
 
 import java.util.*;
 
@@ -18,8 +19,8 @@ import java.util.*;
 public class TokenSentence implements Iterable<Token> {
 
     List<Token> sentenceTokens = new ArrayList<Token>();
-    Token root;
-    ArrayListMultimap<Integer, Token> children = ArrayListMultimap.create();
+    private Token root;
+    ListMultimap<Integer, Token> children = ArrayListMultimap.create();
 
     /**
      * Find the token at some index in this sentence.
