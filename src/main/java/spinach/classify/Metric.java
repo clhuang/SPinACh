@@ -3,6 +3,7 @@ package spinach.classify;
 import com.google.common.collect.Sets;
 import edu.stanford.nlp.stats.ClassicCounter;
 import edu.stanford.nlp.stats.Counter;
+import edu.stanford.nlp.stats.Counters;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 
@@ -77,48 +78,40 @@ public class Metric {
 
             if (PREDICTED_PRED_DURING_ARG_TESTING) {
                 for (Token predictedPredicate : predictedPredicates)
-                    for (Map.Entry<Token, String> entry : predictedFrameSet.argumentsOf(predictedPredicate).entrySet()) {
+                    for (Map.Entry<Token, String> entry : predictedFrameSet.argumentsOf(predictedPredicate).entrySet())
                         predictedArguments.incrementCount(entry.getValue());
-                        predictedArguments.incrementCount(TOTAL);
-                    }
 
                 for (Token goldPredicate : goldPredicates)
-                    for (Map.Entry<Token, String> entry : goldFrameSet.argumentsOf(goldPredicate).entrySet()) {
+                    for (Map.Entry<Token, String> entry : goldFrameSet.argumentsOf(goldPredicate).entrySet())
                         goldArguments.incrementCount(entry.getValue());
-                        goldArguments.incrementCount(TOTAL);
-                    }
 
                 for (Token goldAndPredictedPredicate : goldAndPredictedPredicates)
                     for (Map.Entry<Token, String> correctEntry :
                             Sets.intersection(goldFrameSet.argumentsOf(goldAndPredictedPredicate).entrySet(),
-                                    predictedFrameSet.argumentsOf(goldAndPredictedPredicate).entrySet())) {
+                                    predictedFrameSet.argumentsOf(goldAndPredictedPredicate).entrySet()))
                         correctArguments.incrementCount(correctEntry.getValue());
-                        correctArguments.incrementCount(TOTAL);
-                    }
 
             } else {
 
                 SemanticFrameSet argPredictedFrameSet = gen.argParse(goldFrameSet);
 
                 for (Token goldPredicate : goldPredicates) {
-                    for (Map.Entry<Token, String> entry : goldFrameSet.argumentsOf(goldPredicate).entrySet()) {
+                    for (Map.Entry<Token, String> entry : goldFrameSet.argumentsOf(goldPredicate).entrySet())
                         goldArguments.incrementCount(entry.getValue());
-                        goldArguments.incrementCount(TOTAL);
-                    }
 
-                    for (Map.Entry<Token, String> entry : argPredictedFrameSet.argumentsOf(goldPredicate).entrySet()) {
+                    for (Map.Entry<Token, String> entry : argPredictedFrameSet.argumentsOf(goldPredicate).entrySet())
                         predictedArguments.incrementCount(entry.getValue());
-                        predictedArguments.incrementCount(TOTAL);
-                    }
 
                     for (Map.Entry<Token, String> correctEntry :
                             Sets.intersection(goldFrameSet.argumentsOf(goldPredicate).entrySet(),
-                                    predictedFrameSet.argumentsOf(goldPredicate).entrySet())) {
+                                    predictedFrameSet.argumentsOf(goldPredicate).entrySet()))
                         correctArguments.incrementCount(correctEntry.getValue());
-                        correctArguments.incrementCount(TOTAL);
-                    }
                 }
             }
+
+            goldArguments.setCount(TOTAL, Counters.sumEntries(goldArguments, goldArguments.keySet()));
+            correctArguments.setCount(TOTAL, Counters.sumEntries(correctArguments, correctArguments.keySet()));
+            predictedArguments.setCount(TOTAL, Counters.sumEntries(predictedArguments, predictedArguments.keySet()));
         }
     }
 
@@ -155,10 +148,7 @@ public class Metric {
      * @return predicate classifier F1 score
      */
     public double predicateF1() {
-        double f1 = 2 / ((1 / predicatePrecision()) + (1 / predicateRecall()));
-        if (Double.isNaN(f1))
-            return 0;
-        return f1;
+        return harmMean(predicatePrecision(), predicateRecall());
     }
 
     /**
@@ -230,14 +220,18 @@ public class Metric {
      */
     public Counter<String> argumentF1s() {
         Counter<String> f1s = new ClassicCounter<String>();
-        for (String s : correctArguments.keySet()) {
-            double f1 = 2 / ((1 / argumentPrecisions().getCount(s)) +
-                    (1 / argumentRecalls().getCount(s)));
-            if (Double.isNaN(f1))
-                f1 = 0;
-            f1s.incrementCount(s, f1);
-        }
+        Counter<String> precisions = argumentPrecisions();
+        Counter<String> recalls = argumentRecalls();
+
+        for (String s : correctArguments.keySet())
+            f1s.incrementCount(s, harmMean(precisions.getCount(s), recalls.getCount(s)));
         return f1s;
+    }
+
+    private double harmMean(double d1, double d2) {
+        if (d1 == 0.0 || d2 == 0.0)
+            return 0;
+        return 2 / ((1.0 / d1) + (1.0 / d2));
     }
 
 }
