@@ -2,11 +2,13 @@ package spinach.argumentclassifier.featuregen;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
-import spinach.argumentclassifier.ArgumentClassifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * This feature generator, in addition to the argument feature generator,
@@ -59,30 +61,32 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
      * Adds some feature generator to the list of feature generators.
      *
      * @param featureGenerator feature generator to be added
-     * @return index of feature generator in list
      */
-    public int addFeature(IndividualFeatureGenerator featureGenerator) {
+    public void addFeature(IndividualFeatureGenerator featureGenerator) {
         featureGeneratorSet.add(featureGenerator);
-        return featureGeneratorSet.size() - 1;
     }
 
     private void addDefaultFeatures() {
-        addFeature(new IndividualFeatureGenerator("existSemDeprel") {
+        addFeature(new IndividualFeatureGenerator("existSemDprel") {
 
             @Override
             Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
                 Set<String> features = new HashSet<String>();
 
-                for (String argLabel : frameSet.argumentsOf(predicate).values())
-                    features.add("prevSR|" + argLabel);
+                Collection<String> encounteredLabels = frameSet.argumentsOf(predicate).values();
+
+                features.add(encounteredLabels.contains("A0") ? "esdA0|t" : "esdA0|f");
+                features.add(encounteredLabels.contains("A1") ? "esdA1|t" : "esdA1|f");
+                features.add(encounteredLabels.contains("A2") ? "esdA2|t" : "esdA2|f");
 
                 return features;
             }
         });
 
-        addFeature(new IndividualFeatureGenerator("existCross") {
+        /*
+        addFeature(new SingularFeatureGenerator("existCross") {
             @Override
-            Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+            String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
                 for (Token otherPredicate : frameSet.getPredicateList()) {
                     if (otherPredicate.equals(predicate) || otherPredicate.equals(argument))
                         continue;
@@ -90,11 +94,11 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
                         if (otherArg.equals(predicate) || otherArg.equals(argument))
                             continue;
                         if (existCross(predicate, argument, otherPredicate, otherArg))
-                            return Collections.singleton("existX:yes");
+                            return STRUCTURAL_FEATURE_PREFIX + "existX|yes";
                     }
                 }
 
-                return Collections.singleton("existX:no");
+                return STRUCTURAL_FEATURE_PREFIX + "existX|no";
             }
 
             private boolean existCross(Token predicate1, Token argument1,
@@ -109,10 +113,11 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
             }
         });
 
-        addFeature(new IndividualFeatureGenerator("previousArgClass") {
+
+        addFeature(new SingularFeatureGenerator("previousArgClass") {
 
             @Override
-            Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+            String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
 
                 int mostRecentArgumentIndex = -1;
                 String mostRecentLabel = null;
@@ -126,14 +131,14 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
                 }
 
                 if (mostRecentLabel == null)
-                    return Collections.singleton("previousArgClass:" + ArgumentClassifier.NIL_LABEL);
+                    return STRUCTURAL_FEATURE_PREFIX + "prevAC|" + ArgumentClassifier.NIL_LABEL;
                 else
-                    return Collections.singleton("previousArgClass:" + mostRecentLabel);
+                    return STRUCTURAL_FEATURE_PREFIX + "prevAC|" + mostRecentLabel;
             }
 
-        });
+        });*/
 
-        addFeature(new IndividualFeatureGenerator("linePath") {
+        /*addFeature(new IndividualFeatureGenerator("linePath") {
             @Override
             Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
                 StringBuilder linePathF = new StringBuilder("linePathF|");
@@ -164,27 +169,27 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
             }
         });
 
-        addFeature(new IndividualFeatureGenerator("dpTreeRelation") {
+        addFeature(new SingularFeatureGenerator("dpTreeRelation") {
             @Override
-            Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+            String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
                 if (argument.equals(frameSet.getParent(predicate)))
-                    return Collections.singleton("treeRel|PChild");
+                    return "treeRel|PChild";
 
                 if (predicate.equals(frameSet.getParent(argument)))
-                    return Collections.singleton("treeRel|AChild");
+                    return "treeRel|AChild";
 
                 for (Token t = frameSet.getParent(argument); t != null; t = frameSet.getParent(t))
                     if (predicate.equals(t))
-                        return Collections.singleton("treeRel|ADesc");
+                        return "treeRel|ADesc";
 
                 for (Token t = frameSet.getParent(predicate); t != null; t = frameSet.getParent(t))
                     if (argument.equals(t))
-                        return Collections.singleton("treeRel|PDesc");
+                        return "treeRel|PDesc";
 
                 if (frameSet.getSiblings(predicate).contains(argument))
-                    return Collections.singleton("treeRel|siblings");
+                    return "treeRel|siblings";
 
-                return Collections.singleton("treeRel|none");
+                return "treeRel|none";
             }
         });
 
@@ -227,24 +232,22 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
             }
         });
 
-        addFeature(new IndividualFeatureGenerator("isArgLeaf") {
+        addFeature(new SingularFeatureGenerator("isArgLeaf") {
             @Override
-            Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
-                return Collections.singleton(frameSet.getChildren(argument).isEmpty() ?
-                        "argLeaf" :
-                        "argNotLeaf");
+            String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+                return frameSet.getChildren(argument).isEmpty() ? "argLeaf" : "argNotLeaf";
             }
-        });
+        });*/
 
-        addFeature(new IndividualFeatureGenerator("dpPathLemma") {
+        addFeature(new SingularFeatureGenerator("dpPathLemma") {
             @Override
-            Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+            String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
                 StringBuilder s = new StringBuilder("PAPathLs|");
 
                 for (Token t : frameSet.syntacticPath(predicate, argument))
                     s.append(t.lemma).append(" ");
 
-                return Collections.singleton(s.toString());
+                return s.toString();
             }
         });
 

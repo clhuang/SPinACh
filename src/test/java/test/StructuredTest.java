@@ -4,6 +4,7 @@ import spinach.CorpusUtils;
 import spinach.argumentclassifier.ArgumentClassifier;
 import spinach.argumentclassifier.LeftRightArgumentClassifier;
 import spinach.argumentclassifier.featuregen.ArgumentFeatureGenerator;
+import spinach.argumentclassifier.featuregen.ExtensibleFeatureGenerator;
 import spinach.classifier.PerceptronClassifier;
 import spinach.classify.Metric;
 import spinach.classify.StructuredClassifier;
@@ -21,8 +22,9 @@ public class StructuredTest {
 
         List<SemanticFrameSet> frameSets = CorpusUtils.parseCorpus(TRAIN_CORPUS);
 
-        ArgumentFeatureGenerator argumentFeatureGenerator = new ArgumentFeatureGenerator();
+        ArgumentFeatureGenerator argumentFeatureGenerator = new ExtensibleFeatureGenerator();
         argumentFeatureGenerator.reduceFeatureSet(frameSets);
+        argumentFeatureGenerator.setAllowStructuralFeatures(true);
         PerceptronClassifier argumentClassifierPerceptron =
                 new PerceptronClassifier(argumentFeatureGenerator.getAllowedNonStructuralFeatures(),
                         ArgumentClassifier.getLabelSet(frameSets), NUM_EPOCHS);
@@ -42,7 +44,8 @@ public class StructuredTest {
                 PredicateClassifier.importClassifier("src/test/resources/predicateClassifierA.gz");
         //new PredicateClassifier(predicateClassifierPerceptron, predicateFeatureGenerator);
 
-        StructuredClassifier classifier = new StructuredClassifier(argumentClassifier, predicateClassifier, 1, frameSets);
+        StructuredClassifier classifier = new StructuredClassifier(argumentClassifier, predicateClassifier,
+                NUM_EPOCHS, frameSets);
 
         //classifier.trainPredicateClassifier(frameSets);
         classifier.trainArgumentClassifier();

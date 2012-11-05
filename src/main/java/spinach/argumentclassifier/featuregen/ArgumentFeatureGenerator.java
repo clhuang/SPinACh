@@ -1,5 +1,7 @@
 package spinach.argumentclassifier.featuregen;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.Collections2;
 import edu.stanford.nlp.ling.BasicDatum;
 import edu.stanford.nlp.ling.Datum;
 import edu.stanford.nlp.stats.ClassicCounter;
@@ -37,6 +39,7 @@ public class ArgumentFeatureGenerator implements Serializable {
     private static final int FEATURE_COUNT_THRESHOLD = 5;
 
     private Set<String> allowedNonStructuralFeatures;
+    private boolean allowStructuralFeatures;
 
     /**
      * Generates a datum with features for some sentence, some argument, and some predicate.
@@ -71,18 +74,21 @@ public class ArgumentFeatureGenerator implements Serializable {
      * @param predicate predicate of argument
      * @return collection of features
      */
-    Collection<String> reducedFeaturesOf(SemanticFrameSet sentence,
-                                         Token argument, Token predicate) {
+    final Collection<String> reducedFeaturesOf(SemanticFrameSet sentence,
+                                               Token argument, Token predicate) {
 
         if (allowedNonStructuralFeatures == null)
             return featuresOf(sentence, argument, predicate);
 
-        Collection<String> features = new HashSet<String>();
-        for (String s : featuresOf(sentence, argument, predicate))
-            if (isStructuralFeature(s) || allowedNonStructuralFeatures.contains(s))
-                features.add(s);
+        Predicate<String> filter = new Predicate<String>() {
+            @Override
+            public boolean apply(String input) {
+                return allowedNonStructuralFeatures.contains(input) ||
+                        (isStructuralFeature(input) && allowStructuralFeatures);
+            }
+        };
 
-        return features;
+        return Collections2.filter(featuresOf(sentence, argument, predicate), filter);
     }
 
     private boolean isStructuralFeature(String s) {
@@ -274,5 +280,14 @@ public class ArgumentFeatureGenerator implements Serializable {
      */
     public Set<String> getAllowedNonStructuralFeatures() {
         return Collections.unmodifiableSet(allowedNonStructuralFeatures);
+    }
+
+    /**
+     * Whether or not to allow structural features.
+     *
+     * @param allow true to allow, false otherwise
+     */
+    public void setAllowStructuralFeatures(boolean allow) {
+        allowStructuralFeatures = allow;
     }
 }
