@@ -286,10 +286,8 @@ public class PerceptronClassifier implements Classifier, Serializable {
             zWeights.get(goldLabelIndex).update(featureIndices, 1.0);
         }
 
-        if (totalIterationCount++ == burnInPeriod) {
-            System.out.println("BEGIN AUTO UPDATING WEIGHTS");
+        if (totalIterationCount++ == burnInPeriod)
             autoUpdateWeights = true;
-        }
 
         for (LabelWeights zw : zWeights)
             if (autoUpdateWeights)

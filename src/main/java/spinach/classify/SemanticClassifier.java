@@ -134,7 +134,7 @@ public abstract class SemanticClassifier implements GEN {
 
             //if C_r == {} then return S
             if (additions.isEmpty())
-                return;
+                break;
 
             //S' = shakeOff(S + C_r)
             Set<IndividualFeatureGenerator> updatedFeatureGeneratorSet = shakeOff(
@@ -142,11 +142,16 @@ public abstract class SemanticClassifier implements GEN {
 
             //if scr(M(S)) ≥ scr(M(S′)) then return S
             if (argumentTrainAndScore(featureGeneratorSet) > argumentTrainAndScore(updatedFeatureGeneratorSet))
-                return;
+                break;
 
             //S = S'
             featureGeneratorSet = updatedFeatureGeneratorSet;
         }
+
+        System.err.print("Final feature generators: ");
+        for (IndividualFeatureGenerator f : featureGeneratorSet)
+            System.err.print(f.identifier + " ");
+        System.err.println();
     }
 
     private Map<Set<IndividualFeatureGenerator>, Double> calculatedF1s =
@@ -159,11 +164,19 @@ public abstract class SemanticClassifier implements GEN {
 
         argumentClassifier.reset();
         featureGenerator.setEnabledFeatureGenerators(featureGenerators);
+
+        System.err.print("Feature generators: ");
+        for (IndividualFeatureGenerator f : featureGenerators)
+            System.err.print(f.identifier + " ");
+        System.err.println();
+
         trainArgumentClassifier();
 
         double f1 = new Metric(this, testingFrames).argumentF1s().getCount(Metric.TOTAL);
 
         calculatedF1s.put(featureGenerators, f1);
+        System.err.println("F1: " + f1);
+        System.err.println();
 
         return f1;
     }

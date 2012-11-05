@@ -23,7 +23,7 @@ public class StructuredClassifier extends SemanticClassifier {
     private static final int TRAIN_ARGUMENT_C = 2;
     private transient int trainingMode;
 
-    private boolean VERBOSE = true;
+    private boolean VERBOSE = false;
 
     /**
      * When training argument classifier, use predicted predicates or gold predicates?
@@ -114,8 +114,8 @@ public class StructuredClassifier extends SemanticClassifier {
         DateFormat df = DateFormat.getDateTimeInstance();
 
         for (int i = 0; i < epochs; i++) {
-            System.out.println();
-            System.out.println("Begin training epoch " + (i + 1) + " of " + epochs);
+            if (VERBOSE) System.out.println();
+            System.out.println("Begin training epoch " + (i + 1) + " of " + epochs + " " + df.format(new Date()));
 
             List<SemanticFrameSet> goldFramesCopy = new ArrayList<SemanticFrameSet>(trainingFrames);
 

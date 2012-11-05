@@ -5,6 +5,7 @@ import spinach.argumentclassifier.ArgumentClassifier;
 import spinach.argumentclassifier.LeftRightArgumentClassifier;
 import spinach.argumentclassifier.featuregen.ArgumentFeatureGenerator;
 import spinach.argumentclassifier.featuregen.ExtensibleFeatureGenerator;
+import spinach.argumentclassifier.featuregen.IndividualFeatureGenerator;
 import spinach.classifier.PerceptronClassifier;
 import spinach.classify.Metric;
 import spinach.classify.StructuredClassifier;
@@ -48,20 +49,20 @@ public class StructuredTest {
                 NUM_EPOCHS, frameSets);
 
         //classifier.trainPredicateClassifier(frameSets);
-        classifier.trainArgumentClassifier();
+        //classifier.trainArgumentClassifier();
 
-        argumentClassifier.exportClassifier("src/test/resources/argumentClassifierB.gz");
+        //argumentClassifier.exportClassifier("src/test/resources/argumentClassifierB.gz");
         //classifier.exportPredicateClassifier("src/test/resources/predicateClassifierA.gz");
 
-        System.out.println("Exported classifiers");
+        //System.out.println("Exported classifiers");
 
         List<SemanticFrameSet> testFrameSets = CorpusUtils.parseCorpus(DEVEL_CORPUS);
         System.out.println("parsed devel corpus");
 
-        /*classifier.trainArgumentFeatureGenerator(frameSets, testFrameSets);
+        classifier.trainArgumentFeatureGenerator(frameSets, testFrameSets);
         for (IndividualFeatureGenerator f :
                 ((ExtensibleFeatureGenerator) argumentFeatureGenerator).enabledFeatures())
-            System.out.println(f.identifier);*/
+            System.out.println(f.identifier);
 
         Metric m = new Metric(classifier, testFrameSets);
         m.recalculateScores();

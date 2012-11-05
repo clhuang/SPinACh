@@ -2,13 +2,11 @@ package spinach.argumentclassifier.featuregen;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import spinach.argumentclassifier.ArgumentClassifier;
 import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 /**
  * This feature generator, in addition to the argument feature generator,
@@ -75,15 +73,14 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
 
                 Collection<String> encounteredLabels = frameSet.argumentsOf(predicate).values();
 
-                features.add(encounteredLabels.contains("A0") ? "esdA0|t" : "esdA0|f");
-                features.add(encounteredLabels.contains("A1") ? "esdA1|t" : "esdA1|f");
-                features.add(encounteredLabels.contains("A2") ? "esdA2|t" : "esdA2|f");
+                features.add(STRUCTURAL_FEATURE_PREFIX + (encounteredLabels.contains("A0") ? "esdA0|t" : "esdA0|f"));
+                features.add(STRUCTURAL_FEATURE_PREFIX + (encounteredLabels.contains("A1") ? "esdA1|t" : "esdA1|f"));
+                features.add(STRUCTURAL_FEATURE_PREFIX + (encounteredLabels.contains("A2") ? "esdA2|t" : "esdA2|f"));
 
                 return features;
             }
         });
 
-        /*
         addFeature(new SingularFeatureGenerator("existCross") {
             @Override
             String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
@@ -136,9 +133,9 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
                     return STRUCTURAL_FEATURE_PREFIX + "prevAC|" + mostRecentLabel;
             }
 
-        });*/
+        });
 
-        /*addFeature(new IndividualFeatureGenerator("linePath") {
+        addFeature(new IndividualFeatureGenerator("linePath") {
             @Override
             Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
                 StringBuilder linePathF = new StringBuilder("linePathF|");
@@ -237,7 +234,7 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
             String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
                 return frameSet.getChildren(argument).isEmpty() ? "argLeaf" : "argNotLeaf";
             }
-        });*/
+        });
 
         addFeature(new SingularFeatureGenerator("dpPathLemma") {
             @Override
