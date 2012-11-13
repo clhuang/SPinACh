@@ -214,10 +214,10 @@ public class ArgumentFeatureGenerator implements Serializable {
            * Feature 5: difference in positions, and binary tokens
            */
         int distance = Math.abs(predicate.sentenceIndex - argument.sentenceIndex);
-        features.add("distance|" + distance);
-        features.add("distance=1|" + (distance == 1 ? "t" : "f"));
-        features.add("distance=2|" + (distance == 2 ? "t" : "f"));
-        features.add("distance>2|" + (distance > 2 ? "t" : "f"));
+        features.add("dist|" + distance);
+        features.add(distance == 1 ? "dist=1|t" : "dist=1|f");
+        features.add(distance == 2 ? "dist=2|t" : "dist=2|f");
+        features.add(distance > 2 ? "dist>2|t" : "dist>2|f");
 
         /*
            * Feature 6: predicate before or after argument

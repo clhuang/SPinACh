@@ -1,5 +1,7 @@
 package spinach.sentence;
 
+import com.google.common.collect.Iterables;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -36,17 +38,15 @@ public class TokenSentenceAndPredicates extends TokenSentence {
      * @param predicate predicate to be added
      */
     public void addPredicate(Token predicate) {
+        if (!predicateList.isEmpty()) {
+            Token lastPredicate = Iterables.getLast(predicateList);
+            if (predicate.comesBefore(lastPredicate)) {
+                predicateList.add(predicateList.size() - 1, predicate);
+                predicateList.add(lastPredicate);
+                return;
+            }
+        }
         predicateList.add(predicate);
-    }
-
-    /**
-     * Add a bunch of predicates to the list of predicates.
-     * The predicates should be in order.
-     *
-     * @param predicateList list of predicates to be appended
-     */
-    public void addPredicates(List<Token> predicateList) {
-        predicateList.addAll(predicateList);
     }
 
     /**

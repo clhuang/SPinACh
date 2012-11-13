@@ -31,6 +31,7 @@ public class CorpusUtils {
      *
      * @param corpusLoc text corpus file location
      * @return list of semantic framesets, one for each sentence in the corpus
+     * @throws java.io.IOException 　if file is missing or is improperly formatted
      */
     public static List<SemanticFrameSet> parseCorpus(String corpusLoc) throws IOException {
 

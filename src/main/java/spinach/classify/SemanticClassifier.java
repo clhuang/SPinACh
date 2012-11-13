@@ -102,16 +102,15 @@ public abstract class SemanticClassifier implements GEN {
         this.trainingFrames = trainingFrames;
         this.testingFrames = testingFrames;
 
-        if (argumentClassifier.isFeatureTrainable())
-            featureGenerator = (ExtensibleFeatureGenerator) argumentClassifier.getFeatureGenerator();
-        else {
+        if (!argumentClassifier.isFeatureTrainable()) {
             System.err.println("Cannot train feature generator--is not a trainable feature generator");
             return;
         }
+        featureGenerator = (ExtensibleFeatureGenerator) argumentClassifier.getFeatureGenerator();
 
         featureGenerator.clearFeatures();
 
-        //S = {f_0, f_1, ..., f_k}, a random subset of FT
+        System.err.println("S = {f_0, f_1, ..., f_k}, a random subset of FT");
         Random random = new Random(0);
 
         int numFeaturesToAdd = featureGenerator.featureGeneratorSet().size() / 2;
@@ -129,22 +128,23 @@ public abstract class SemanticClassifier implements GEN {
 
         while (true) {
 
-            //C_r = recruitMore(s);
+            System.err.println("C_r = recruitMore(s)");
             Set<IndividualFeatureGenerator> additions = recruitMore(featureGeneratorSet);
 
-            //if C_r == {} then return S
+            System.err.println("if C_r == {} then return S");
             if (additions.isEmpty())
                 break;
 
-            //S' = shakeOff(S + C_r)
+            System.err.println("S' = shakeOff(S + C_r)");
             Set<IndividualFeatureGenerator> updatedFeatureGeneratorSet = shakeOff(
                     Sets.union(featureGeneratorSet, additions));
+            System.err.println("End shakeOff");
 
-            //if scr(M(S)) ≥ scr(M(S′)) then return S
+            System.err.println("if scr(M(S)) ≥ scr(M(S′)) then return S");
             if (argumentTrainAndScore(featureGeneratorSet) > argumentTrainAndScore(updatedFeatureGeneratorSet))
                 break;
 
-            //S = S'
+            System.err.println("S = S'");
             featureGeneratorSet = updatedFeatureGeneratorSet;
         }
 
@@ -157,18 +157,44 @@ public abstract class SemanticClassifier implements GEN {
     private Map<Set<IndividualFeatureGenerator>, Double> calculatedF1s =
             new HashMap<Set<IndividualFeatureGenerator>, Double>();
 
+    private void recordPreviouslyCalculatedScores(String generators, double scores) {
+        String[] gen = generators.split("\\s+");
+        Set<IndividualFeatureGenerator> featureGenerators = new HashSet<IndividualFeatureGenerator>();
+
+        featureGeneratorLoop:
+        for (String s : gen) {
+            if ("hi/lo".equals(s))
+                s = "hi/lo support";
+            if ("support".equals(s))
+                continue;
+
+            for (IndividualFeatureGenerator f : featureGenerator.featureGeneratorSet()) {
+                if (f.identifier.equals(s)) {
+                    featureGenerators.add(f);
+                    continue featureGeneratorLoop;
+                }
+            }
+            System.err.println("feature generator " + s + " not found");
+        }
+
+        calculatedF1s.put(featureGenerators, scores);
+    }
 
     private double argumentTrainAndScore(Set<IndividualFeatureGenerator> featureGenerators) {
-        if (calculatedF1s.containsKey(featureGenerators))
-            return calculatedF1s.get(featureGenerators);
-
-        argumentClassifier.reset();
-        featureGenerator.setEnabledFeatureGenerators(featureGenerators);
 
         System.err.print("Feature generators: ");
         for (IndividualFeatureGenerator f : featureGenerators)
             System.err.print(f.identifier + " ");
         System.err.println();
+
+        if (calculatedF1s.containsKey(featureGenerators)) {
+            double f1 = calculatedF1s.get(featureGenerators);
+            System.err.println("Previously calculated F1: " + f1);
+            return f1;
+        }
+
+        argumentClassifier.reset();
+        featureGenerator.setEnabledFeatureGenerators(featureGenerators);
 
         trainArgumentClassifier();
 
@@ -182,6 +208,7 @@ public abstract class SemanticClassifier implements GEN {
     }
 
     private Set<IndividualFeatureGenerator> recruitMore(Set<IndividualFeatureGenerator> featureGenerators) {
+        System.err.println("Begin recruitMore");
 
         //C_r = {}
         Set<IndividualFeatureGenerator> additions = new HashSet<IndividualFeatureGenerator>();
@@ -196,10 +223,12 @@ public abstract class SemanticClassifier implements GEN {
                     > originalScore)
                 additions.add(possibleAddition);
 
+        System.err.println("End recruitMore");
         return additions;
     }
 
     private Set<IndividualFeatureGenerator> shakeOff(Set<IndividualFeatureGenerator> featureGeneratorSet) {
+        System.err.println("Begin shakeOff");
 
         /*
          * S_max = maxFeatureGenerators
@@ -225,24 +254,24 @@ public abstract class SemanticClassifier implements GEN {
             Set<IndividualFeatureGenerator> currentFeatureGenerators =
                     new HashSet<IndividualFeatureGenerator>(originalFeatureGenerators);
 
-            //track scr(M(S - {f})) for each f ∈ S
+            System.err.println("track scr(M(S - {f})) for each f ∈ S");
             for (IndividualFeatureGenerator generator : originalFeatureGenerators) {
                 currentFeatureGenerators.remove(generator);
                 featureGenAndScoresWO.put(generator, argumentTrainAndScore(currentFeatureGenerators));
                 currentFeatureGenerators.add(generator);
             }
 
-            //sort S in the descending order of scr(M(S − {f})) for each f ∈ S
+            System.err.println("sort S in the descending order of scr(M(S − {f})) for each f ∈ S");
             Set<IndividualFeatureGenerator> sortedFeatureGenerators =
                     invertedSortByValues(featureGenAndScoresWO).keySet();
 
             double sMaxScore = argumentTrainAndScore(maxFeatureGenerators);
 
-            //while (S = S − {f_0}) != {}
+            System.err.println("while (S = S − {f_0}) != {}");
             for (; !sortedFeatureGenerators.isEmpty();
                  sortedFeatureGenerators.remove(Iterables.getFirst(sortedFeatureGenerators, null))) {
 
-                //S_max = argmax_(x∈{Smax; S}) scr(M(x))
+                System.err.println("S_max = argmax_(x∈{Smax; S}) scr(M(x))");
                 double score = argumentTrainAndScore(sortedFeatureGenerators);
                 if (score > sMaxScore) {
                     maxFeatureGenerators =
@@ -251,7 +280,7 @@ public abstract class SemanticClassifier implements GEN {
                 }
             }
 
-            //if S_0 == S_max then return S_0;
+            System.err.println("if S_0 == S_max then return S_0");
             if (originalFeatureGenerators.equals(maxFeatureGenerators))
                 return originalFeatureGenerators;
         }
@@ -270,6 +299,6 @@ public abstract class SemanticClassifier implements GEN {
         Map<K, V> sortedByValues = new TreeMap<K, V>(valueComparator);
         sortedByValues.putAll(map);
 
-        return sortedByValues;
+        return new LinkedHashMap<K, V>(sortedByValues);
     }
 }

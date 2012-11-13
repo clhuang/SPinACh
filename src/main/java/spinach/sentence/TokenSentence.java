@@ -18,18 +18,22 @@ import java.util.*;
  */
 public class TokenSentence implements Iterable<Token> {
 
-    List<Token> sentenceTokens = new ArrayList<Token>();
+    Token[] sentenceTokens = new Token[10];
     private Token root;
     ListMultimap<Integer, Token> children = ArrayListMultimap.create();
+    int size = 0;
 
     /**
      * Find the token at some index in this sentence.
      *
-     * @param index index to look for (0-based)
+     * @param index index to look for (0 < index < this.size())
      * @return token at that index
      */
     public Token tokenAt(int index) {
-        return sentenceTokens.get(index);
+        if (index > sentenceTokens.length || sentenceTokens[index] == null)
+            throw new NoSuchElementException("Token number " + index + " does not exist");
+
+        return sentenceTokens[index];
     }
 
     /**
@@ -38,7 +42,11 @@ public class TokenSentence implements Iterable<Token> {
      * @param token token to be added
      */
     public void addToken(Token token) {
-        sentenceTokens.add(token);
+        ensureCapacity(token.sentenceIndex + 1);
+        sentenceTokens[token.sentenceIndex] = token;
+
+        if (token.sentenceIndex + 1 > size)
+            size = token.sentenceIndex + 1;
         if (token.headSentenceIndex >= 0)
             children.put(token.headSentenceIndex, token);
         else
@@ -57,14 +65,13 @@ public class TokenSentence implements Iterable<Token> {
     /**
      * Get the parent of some token.
      *
-     * @param t token whose parent we are looking for
-     * @return syntactic head of t, null if t is root
+     * @param child token whose parent we are looking for
+     * @return syntactic head of child, null if child is root
      */
-    public Token getParent(Token t) {
-        Token child = sentenceTokens.get(t.sentenceIndex);
+    public Token getParent(Token child) {
         if (child.headSentenceIndex < 0)
             return null;
-        return sentenceTokens.get(child.headSentenceIndex);
+        return tokenAt(child.headSentenceIndex);
     }
 
     /**
@@ -87,9 +94,8 @@ public class TokenSentence implements Iterable<Token> {
         Set<Token> descendants = new HashSet<Token>();
         List<Token> children = getChildren(t);
         descendants.addAll(children);
-        for (Token child : children) {
+        for (Token child : children)
             descendants.addAll(getDescendants(child));
-        }
 
         return descendants;
     }
@@ -234,7 +240,7 @@ public class TokenSentence implements Iterable<Token> {
      * @return number of tokens in the sentence
      */
     public int size() {
-        return sentenceTokens.size();
+        return size;
     }
 
     /**
@@ -244,7 +250,41 @@ public class TokenSentence implements Iterable<Token> {
      */
     @Override
     public Iterator<Token> iterator() {
-        return sentenceTokens.iterator();
+        return new Iterator<Token>() {
+
+            int nextIndex = -1;
+
+            {
+                updateNextIndex();
+            }
+
+            @Override
+            public boolean hasNext() {
+                return nextIndex >= 0;
+            }
+
+            @Override
+            public Token next() {
+                if (!hasNext())
+                    throw new NoSuchElementException();
+                Token returnVal = sentenceTokens[nextIndex];
+                updateNextIndex();
+                return returnVal;
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+
+            private void updateNextIndex() {
+                for (nextIndex++; nextIndex < sentenceTokens.length; nextIndex++)
+                    if (sentenceTokens[nextIndex] != null)
+                        return;
+                //no next element
+                nextIndex = -1;
+            }
+        };
     }
 
     /**
@@ -303,5 +343,15 @@ public class TokenSentence implements Iterable<Token> {
 
     private static boolean isGetVerb(Token t) {
         return getVerbForms.contains(t.form.toLowerCase());
+    }
+
+    private void ensureCapacity(int capacity) {
+        int oldCapacity = sentenceTokens.length;
+        if (capacity > oldCapacity) {
+            int newCapacity = (oldCapacity * 3) / 2 + 1;
+            if (newCapacity < capacity)
+                newCapacity = capacity;
+            sentenceTokens = Arrays.copyOf(sentenceTokens, newCapacity);
+        }
     }
 }

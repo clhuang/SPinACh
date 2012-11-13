@@ -51,9 +51,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
         private transient int currentIteration;
         private transient int[] lastUpdateIteration;
 
-        private final String label;
-
-        LabelWeights(int numFeatures, String label) {
+        LabelWeights(int numFeatures) {
             if (numFeatures < MIN_NUM_FEATURES)
                 numFeatures = MIN_NUM_FEATURES;
             weights = new double[numFeatures];
@@ -64,8 +62,6 @@ public class PerceptronClassifier implements Classifier, Serializable {
              */
             lastUpdateIteration = new int[numFeatures];
             currentIteration = 1;
-
-            this.label = label;
         }
 
         void incrementCurrentIteration() {
@@ -157,9 +153,8 @@ public class PerceptronClassifier implements Classifier, Serializable {
         }
     }
 
-    private ArrayList<LabelWeights> zWeights = new ArrayList<LabelWeights>();
+    private Map<String, LabelWeights> zWeights = new HashMap<String, LabelWeights>();
 
-    private Index<String> labelIndex = new HashIndex<String>();
     private Index<String> featureIndex = new HashIndex<String>();
 
     private final int epochs;
@@ -183,10 +178,9 @@ public class PerceptronClassifier implements Classifier, Serializable {
     public PerceptronClassifier(Collection<String> initialFeatureSet, Collection<String> initialLabelSet, int epochs) {
         this(epochs);
         featureIndex.addAll(initialFeatureSet);
-        labelIndex.addAll(initialLabelSet);
 
-        for (int i = 0; i < labelIndex.size(); i++)
-            zWeights.add(new LabelWeights(initialFeatureSet.size(), labelIndex.get(i)));
+        for (String label : initialLabelSet)
+            zWeights.put(label, new LabelWeights(initialFeatureSet.size()));
     }
 
     /**
@@ -196,13 +190,12 @@ public class PerceptronClassifier implements Classifier, Serializable {
      */
     @Override
     public void train(Dataset<String, String> dataset) {
-        labelIndex = dataset.labelIndex();
         featureIndex = dataset.featureIndex();
         int numFeatures = featureIndex.size();
 
-        zWeights = new ArrayList<LabelWeights>(labelIndex.size());
-        for (int i = 0; i < labelIndex.size(); i++)
-            zWeights.add(new LabelWeights(numFeatures, labelIndex.get(i)));
+        zWeights = new HashMap<String, LabelWeights>();
+        for (String label : dataset.labelIndex())
+            zWeights.put(label, new LabelWeights(numFeatures));
 
         System.err.println("Running perceptronClassifier on " + dataset.size() + " features");
         long startTime = System.currentTimeMillis();
@@ -274,22 +267,19 @@ public class PerceptronClassifier implements Classifier, Serializable {
 
     private void train(Set<Integer> featureIndices, String goldLabel, String predictedLabel) {
 
-        int predictedLabelIndex = labelIndex.indexOf(predictedLabel);
-        int goldLabelIndex = labelIndex.indexOf(goldLabel, true);
-
-        if (goldLabelIndex >= zWeights.size())
-            zWeights.add(new LabelWeights(featureIndex.size(), goldLabel));
+        if (!zWeights.containsKey(goldLabel))
+            zWeights.put(goldLabel, new LabelWeights(featureIndex.size()));
 
         if (!goldLabel.equals(predictedLabel)) {
-            if (predictedLabelIndex >= 0)
-                zWeights.get(predictedLabelIndex).update(featureIndices, -1.0);
-            zWeights.get(goldLabelIndex).update(featureIndices, 1.0);
+            if (zWeights.containsKey(predictedLabel))
+                zWeights.get(predictedLabel).update(featureIndices, -1.0);
+            zWeights.get(goldLabel).update(featureIndices, 1.0);
         }
 
         if (totalIterationCount++ == burnInPeriod)
             autoUpdateWeights = true;
 
-        for (LabelWeights zw : zWeights)
+        for (LabelWeights zw : zWeights.values())
             if (autoUpdateWeights)
                 zw.incrementCurrentIteration();
     }
@@ -297,7 +287,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
     private void train(Datum<String, String> datum) {
         Set<Integer> exampleFeatureIndices = featuresOf(datum);
 
-        String predictedLabel = argMaxDotProduct(exampleFeatureIndices);
+        String predictedLabel = argMaxDotProduct(exampleFeatureIndices, false);
         String goldLabel = datum.label();
 
         train(exampleFeatureIndices, goldLabel, predictedLabel);
@@ -319,31 +309,19 @@ public class PerceptronClassifier implements Classifier, Serializable {
     /**
      * Returns the label that gives the greatest score for some features
      */
-    private String argMaxDotProduct(Set<Integer> exampleFeatureIndices) {
+    private String argMaxDotProduct(Set<Integer> exampleFeatureIndices, boolean training) {
         double maxDotProduct = Double.NEGATIVE_INFINITY;
-        int argMax = -1;
+        String argMax = "";
 
-        for (int i = 0; i < zWeights.size(); i++) {
-            double dotProduct = zWeights.get(i).trainingDotProduct(exampleFeatureIndices);
+        for (Map.Entry<String, LabelWeights> entry : zWeights.entrySet()) {
+            double dotProduct = training ? entry.getValue().trainingDotProduct(exampleFeatureIndices) :
+                    entry.getValue().avgDotProduct(exampleFeatureIndices);
             if (dotProduct > maxDotProduct) {
                 maxDotProduct = dotProduct;
-                argMax = i;
+                argMax = entry.getKey();
             }
         }
 
-        return labelIndex.get(argMax);
-    }
-
-    private String argMaxAverageDotProduct(Set<Integer> exampleFeatureIndices) {
-        double maxDotProduct = Double.NEGATIVE_INFINITY;
-        String argMax = null;
-        for (LabelWeights l : zWeights) {
-            double dotProduct = l.avgDotProduct(exampleFeatureIndices);
-            if (dotProduct > maxDotProduct) {
-                maxDotProduct = dotProduct;
-                argMax = l.label;
-            }
-        }
         return argMax;
     }
 
@@ -355,12 +333,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
      */
     @Override
     public Counter<String> scoresOf(Datum<String, String> datum) {
-        Counter<String> scores = new ClassicCounter<String>();
-        Set<Integer> featureCounts = featuresOf(datum);
-        for (LabelWeights l : zWeights)
-            scores.incrementCount(l.label,
-                    l.avgDotProduct(featureCounts));
-        return scores;
+        return scoresOf(datum, false);
     }
 
     /**
@@ -370,11 +343,16 @@ public class PerceptronClassifier implements Classifier, Serializable {
      * @return Counter with scores of each label
      */
     public Counter<String> trainingScores(Datum<String, String> datum) {
+        return scoresOf(datum, true);
+    }
+
+    private Counter<String> scoresOf(Datum<String, String> datum, boolean training) {
         Counter<String> scores = new ClassicCounter<String>();
         Set<Integer> featureCounts = featuresOf(datum);
-        for (LabelWeights l : zWeights)
-            scores.incrementCount(l.label,
-                    l.trainingDotProduct(featureCounts));
+        for (Map.Entry<String, LabelWeights> entry : zWeights.entrySet())
+            scores.incrementCount(entry.getKey(),
+                    training ? entry.getValue().trainingDotProduct(featureCounts) :
+                            entry.getValue().avgDotProduct(featureCounts));
         return scores;
     }
 
@@ -387,12 +365,10 @@ public class PerceptronClassifier implements Classifier, Serializable {
      */
     public void updateCounterScores(Datum<String, String> datum, Counter<String> scores, boolean training) {
         Set<Integer> featureCounts = featuresOf(datum);
-        int index;
-        for (String label : scores.keySet()) {
-            if ((index = labelIndex.indexOf(label)) >= 0)
-                scores.setCount(label, training ? zWeights.get(index).trainingDotProduct(featureCounts) :
-                        zWeights.get(index).avgDotProduct(featureCounts));
-        }
+        for (String label : scores.keySet())
+            if (zWeights.containsKey(label))
+                scores.setCount(label, training ? zWeights.get(label).trainingDotProduct(featureCounts) :
+                        zWeights.get(label).avgDotProduct(featureCounts));
     }
 
     /**
@@ -403,7 +379,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
      */
     @Override
     public String classOf(Datum<String, String> datum) {
-        return argMaxAverageDotProduct(featuresOf(datum));
+        return argMaxDotProduct(featuresOf(datum), false);
     }
 
     /**
@@ -414,23 +390,22 @@ public class PerceptronClassifier implements Classifier, Serializable {
      * @return label with highest score
      */
     public String trainingClassOf(Datum<String, String> datum) {
-        return argMaxDotProduct(featuresOf(datum));
+        return argMaxDotProduct(featuresOf(datum), true);
     }
 
     /**
      * Clears the weights
      */
     public void reset() {
-        zWeights.clear();
-        for (int i = 0; i < labelIndex.size(); i++)
-            zWeights.add(new LabelWeights(featureIndex.size(), labelIndex.get(i)));
+        for (String label : zWeights.keySet())
+            zWeights.put(label, new LabelWeights(featureIndex.size()));
     }
 
     /**
      * Updates all the average weights for accurate results when classifying.
      */
     public void updateAverageWeights() {
-        for (LabelWeights l : zWeights)
+        for (LabelWeights l : zWeights.values())
             l.updateAllAverage();
     }
 
@@ -448,7 +423,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
      *
      * @return list of labels
      */
-    public List<String> indexedLabels() {
-        return Collections.unmodifiableList(labelIndex.objectsList());
+    public Collection<String> indexedLabels() {
+        return Collections.unmodifiableSet(zWeights.keySet());
     }
 }

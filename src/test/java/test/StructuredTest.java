@@ -2,14 +2,13 @@ package test;
 
 import spinach.CorpusUtils;
 import spinach.argumentclassifier.ArgumentClassifier;
-import spinach.argumentclassifier.LeftRightArgumentClassifier;
+import spinach.argumentclassifier.EasyFirstArgumentClassifier;
 import spinach.argumentclassifier.featuregen.ArgumentFeatureGenerator;
-import spinach.argumentclassifier.featuregen.ExtensibleFeatureGenerator;
-import spinach.argumentclassifier.featuregen.IndividualFeatureGenerator;
 import spinach.classifier.PerceptronClassifier;
 import spinach.classify.Metric;
 import spinach.classify.StructuredClassifier;
 import spinach.predicateclassifier.PredicateClassifier;
+import spinach.predicateclassifier.PredicateFeatureGenerator;
 import spinach.sentence.SemanticFrameSet;
 
 import java.io.IOException;
@@ -23,7 +22,7 @@ public class StructuredTest {
 
         List<SemanticFrameSet> frameSets = CorpusUtils.parseCorpus(TRAIN_CORPUS);
 
-        ArgumentFeatureGenerator argumentFeatureGenerator = new ExtensibleFeatureGenerator();
+        ArgumentFeatureGenerator argumentFeatureGenerator = new ArgumentFeatureGenerator();
         argumentFeatureGenerator.reduceFeatureSet(frameSets);
         argumentFeatureGenerator.setAllowStructuralFeatures(true);
         PerceptronClassifier argumentClassifierPerceptron =
@@ -34,13 +33,13 @@ public class StructuredTest {
 
         ArgumentClassifier argumentClassifier =
                 //StructuredClassifier.importArgumentClassifier("src/test/resources/argumentClassifierB.gz");
-                new LeftRightArgumentClassifier(argumentClassifierPerceptron, argumentFeatureGenerator);
+                new EasyFirstArgumentClassifier(argumentClassifierPerceptron, argumentFeatureGenerator);
 
-        /*PredicateFeatureGenerator predicateFeatureGenerator = new PredicateFeatureGenerator();
+        PredicateFeatureGenerator predicateFeatureGenerator = new PredicateFeatureGenerator();
         predicateFeatureGenerator.reduceFeatureSet(frameSets);
         PerceptronClassifier predicateClassifierPerceptron =
                 new PerceptronClassifier(predicateFeatureGenerator.getAllowedNonStructuralFeatures(),
-                        PredicateClassifier.getLabelSet(), 10);*/
+                        PredicateClassifier.getLabelSet(), 10);
         PredicateClassifier predicateClassifier =
                 PredicateClassifier.importClassifier("src/test/resources/predicateClassifierA.gz");
         //new PredicateClassifier(predicateClassifierPerceptron, predicateFeatureGenerator);
@@ -48,21 +47,23 @@ public class StructuredTest {
         StructuredClassifier classifier = new StructuredClassifier(argumentClassifier, predicateClassifier,
                 NUM_EPOCHS, frameSets);
 
-        //classifier.trainPredicateClassifier(frameSets);
-        //classifier.trainArgumentClassifier();
+        classifier.VERBOSE = true;
 
-        //argumentClassifier.exportClassifier("src/test/resources/argumentClassifierB.gz");
-        //classifier.exportPredicateClassifier("src/test/resources/predicateClassifierA.gz");
+        //classifier.trainPredicateClassifier();
+        classifier.trainArgumentClassifier();
+
+        argumentClassifier.exportClassifier("src/test/resources/argumentClassifierEFA.gz");
+        //predicateClassifier.exportClassifier("src/test/resources/predicateClassifierA.gz");
 
         //System.out.println("Exported classifiers");
 
         List<SemanticFrameSet> testFrameSets = CorpusUtils.parseCorpus(DEVEL_CORPUS);
         System.out.println("parsed devel corpus");
 
-        classifier.trainArgumentFeatureGenerator(frameSets, testFrameSets);
+        /*classifier.trainArgumentFeatureGenerator(frameSets, testFrameSets);
         for (IndividualFeatureGenerator f :
                 ((ExtensibleFeatureGenerator) argumentFeatureGenerator).enabledFeatures())
-            System.out.println(f.identifier);
+            System.out.println(f.identifier);*/
 
         Metric m = new Metric(classifier, testFrameSets);
         m.recalculateScores();

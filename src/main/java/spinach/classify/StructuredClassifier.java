@@ -23,7 +23,7 @@ public class StructuredClassifier extends SemanticClassifier {
     private static final int TRAIN_ARGUMENT_C = 2;
     private transient int trainingMode;
 
-    private boolean VERBOSE = false;
+    public boolean VERBOSE = false;
 
     /**
      * When training argument classifier, use predicted predicates or gold predicates?

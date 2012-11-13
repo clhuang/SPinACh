@@ -10,11 +10,15 @@ import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 import spinach.sentence.TokenSentenceAndPredicates;
 
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
 public class LeftRightArgumentClassifier extends ArgumentClassifier {
+
+    private static final boolean CONSISTENCY_MODULE = false;
+    private static final boolean CONS_WHEN_TRAINING = false;
 
     public LeftRightArgumentClassifier(PerceptronClassifier classifier, ArgumentFeatureGenerator featureGenerator) {
         super(classifier, featureGenerator);
@@ -29,8 +33,7 @@ public class LeftRightArgumentClassifier extends ArgumentClassifier {
             Map<Token, Counter<String>> argumentLabelScores =
                     new LinkedHashMap<Token, Counter<String>>();
 
-            for (Token possibleArg :
-                    ArgumentClassifier.argumentCandidates(sentenceAndPredicates, predicate)) {
+            for (Token possibleArg : argumentCandidates(frameSet, predicate)) {
                 Counter<String> argClassScores = new ClassicCounter<String>(classifier.indexedLabels());
 
                 argumentLabelScores.put(possibleArg, argClassScores);
@@ -41,29 +44,28 @@ public class LeftRightArgumentClassifier extends ArgumentClassifier {
                 updateCounterScores(frameSet, possibleArg, predicate, argumentLabelScores.get(possibleArg), training);
                 String argLabel = Counters.argmax(argumentLabelScores.get(possibleArg));
 
-                if (argLabel != null && !argLabel.equals("NIL"))
+                if (argLabel != null && !argLabel.equals(NIL_LABEL))
                     frameSet.addArgument(predicate, possibleArg, argLabel);
                 else
                     continue;
 
-                if (isRestrictedLabel(argLabel)) {
+                if (CONSISTENCY_MODULE && (!training || CONS_WHEN_TRAINING)) {
+                    if (argLabel.matches("A[0-9]"))
+                        for (Token token : argumentLabelScores.keySet())
+                            argumentLabelScores.get(token).remove(argLabel);
 
-                    Set<Token> restrictedTokens = frameSet.getDescendants(possibleArg);
-                    restrictedTokens.addAll(frameSet.getAncestors(possibleArg));
+                    if (isRestrictedLabel(argLabel)) {
 
-                    for (Token t : Sets.intersection(argumentLabelScores.keySet(), restrictedTokens)) {
-                        Counter<String> tokenLabelScores = argumentLabelScores.get(t);
-                        Counter<String> updatedScores = new ClassicCounter<String>();
+                        Set<Token> restrictedTokens = frameSet.getDescendants(possibleArg);
+                        restrictedTokens.addAll(frameSet.getAncestors(possibleArg));
 
-                        for (Map.Entry<String, Double> e : tokenLabelScores.entrySet()) {
-                            String label = e.getKey();
-                            if (!isRestrictedLabel(label))
-                                updatedScores.setCount(label, e.getValue());
+                        for (Token t : Sets.intersection(argumentLabelScores.keySet(), restrictedTokens)) {
+                            for (Iterator<String> itr = argumentLabelScores.get(t).keySet().iterator(); itr.hasNext(); )
+                                if (isRestrictedLabel(itr.next()))
+                                    itr.remove();
                         }
                     }
-                } else if (argLabel.matches("A[0-9]"))
-                    for (Token token : argumentLabelScores.keySet())
-                        argumentLabelScores.get(token).remove(argLabel);
+                }
             }
         }
 
