@@ -1,6 +1,5 @@
 package spinach.argumentclassifier;
 
-import com.google.common.collect.Sets;
 import edu.stanford.nlp.stats.Counter;
 import edu.stanford.nlp.stats.Counters;
 import edu.stanford.nlp.util.Pair;
@@ -10,16 +9,26 @@ import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 import spinach.sentence.TokenSentenceAndPredicates;
 
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 
+/**
+ * An implementation of an ArgumentClassifier that iterates left-to-right
+ * through the predicates, and generates scores for each of the predicate's
+ * argument candidates simultaneously. It then classifies the argument with
+ * the highest score and label, regenerates the scores for the remaining args
+ * and repeats until all the arguments have been classified.
+ */
 public class EasyFirstArgumentClassifier extends ArgumentClassifier {
 
-    private static final boolean CONSISTENCY_MODULE = true;
-    private static final boolean CONS_WHEN_TRAINING = true;
+    private static final long serialVersionUID = 7822422638276122112L;
 
+    /**
+     * Instantiates a new EasyFirstArgumentClassifier.
+     *
+     * @param classifier       a Perceptron classifier that this ArgumentClassifier is based upon
+     * @param featureGenerator that generates features for each input
+     */
     public EasyFirstArgumentClassifier(PerceptronClassifier classifier, ArgumentFeatureGenerator featureGenerator) {
         super(classifier, featureGenerator);
     }
@@ -35,7 +44,7 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier {
 
             for (Token possibleArg :
                     ArgumentClassifier.argumentCandidates(sentenceAndPredicates, predicate)) {
-                argumentLabelScores.put(possibleArg, argClassScores(frameSet, possibleArg, predicate));
+                argumentLabelScores.put(possibleArg, argClassScores(frameSet, possibleArg, predicate, training));
             }
 
             while (!argumentLabelScores.isEmpty()) {
@@ -50,25 +59,10 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier {
 
                 frameSet.addArgument(predicate, arg, argLabel);
 
-                if (CONSISTENCY_MODULE && (!training || CONS_WHEN_TRAINING)) {
-                    if (argLabel.matches("A[0-9]"))
-                        for (Token token : argumentLabelScores.keySet())
-                            argumentLabelScores.get(token).remove(argLabel);
-                    else if (isRestrictedLabel(argLabel)) {
-
-                        Set<Token> restrictedTokens = frameSet.getDescendants(arg);
-                        restrictedTokens.addAll(frameSet.getAncestors(arg));
-
-                        for (Token t : Sets.intersection(argumentLabelScores.keySet(), restrictedTokens)) {
-                            for (Iterator<String> itr = argumentLabelScores.get(t).keySet().iterator(); itr.hasNext(); )
-                                if (isRestrictedLabel(itr.next()))
-                                    itr.remove();
-                        }
-                    }
-                }
-
                 for (Map.Entry<Token, Counter<String>> entry : argumentLabelScores.entrySet())
                     updateCounterScores(frameSet, entry.getKey(), predicate, entry.getValue(), training);
+
+                enforceConsistency(predicate, arg, argLabel, frameSet, training, argumentLabelScores);
             }
         }
 
@@ -91,9 +85,5 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier {
         }
 
         return new Pair<Token, String>(best, argMax);
-    }
-
-    private boolean isRestrictedLabel(String label) {
-        return !(ArgumentClassifier.NIL_LABEL.equals(label) || "SU".equals(label) || label.startsWith("AM-"));
     }
 }

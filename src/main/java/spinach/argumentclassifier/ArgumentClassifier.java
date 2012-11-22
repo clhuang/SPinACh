@@ -1,7 +1,9 @@
 package spinach.argumentclassifier;
 
+import com.google.common.collect.Sets;
 import edu.stanford.nlp.classify.Dataset;
 import edu.stanford.nlp.ling.BasicDatum;
+import edu.stanford.nlp.ling.Datum;
 import edu.stanford.nlp.stats.Counter;
 import spinach.argumentclassifier.featuregen.ArgumentFeatureGenerator;
 import spinach.argumentclassifier.featuregen.ExtensibleFeatureGenerator;
@@ -25,10 +27,15 @@ import java.util.zip.GZIPOutputStream;
  */
 public abstract class ArgumentClassifier implements Serializable {
 
+    private boolean enableConsistency = true;
+    private boolean consistencyWhenTraining = false;
+
     protected final PerceptronClassifier classifier;
     private final ArgumentFeatureGenerator featureGenerator;
 
     public final static String NIL_LABEL = "NIL";
+
+    private static final long serialVersionUID = 1008397275270930536L;
 
     /**
      * Constructs an ArgumentClassifier with a perceptron and a feature generator
@@ -101,23 +108,14 @@ public abstract class ArgumentClassifier implements Serializable {
      * @param frameSet    sentence to be analyzed
      * @param possibleArg possible argument of that sentence
      * @param predicate   predicate in that sentence
+     * @param training    whether or not you want training weights
      * @return scores of the possible labels of that predicate-argument pair
      */
-    protected Counter<String> argClassScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate) {
-        return classifier.scoresOf(featureGenerator.datumFrom(frameSet, possibleArg, predicate));
-    }
-
-    /**
-     * Gives the scores for each argument label, given a sentence, predicate, and argument candidate
-     * based on training weights
-     *
-     * @param frameSet    sentence to be analyzed
-     * @param possibleArg possible argument of that sentence
-     * @param predicate   predicate in that sentence
-     * @return scores of the possible labels of that predicate-argument pair
-     */
-    protected Counter<String> trainingArgClassScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate) {
-        return classifier.trainingScores(featureGenerator.datumFrom(frameSet, possibleArg, predicate));
+    protected Counter<String> argClassScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate,
+                                             boolean training) {
+        Datum<String, String> d = featureGenerator.datumFrom(frameSet, possibleArg, predicate);
+        return training ? classifier.trainingScores(d) :
+                classifier.scoresOf(d);
     }
 
     protected void updateCounterScores(SemanticFrameSet frameSet, Token possibleArg, Token predicate,
@@ -220,9 +218,46 @@ public abstract class ArgumentClassifier implements Serializable {
                 }
             }
         }
-
         classifier.manualTrain(dataset);
+    }
 
+    void enforceConsistency(Token predicate, Token arg, String argLabel, SemanticFrameSet frameSet,
+                            boolean training, Map<Token, Counter<String>> argumentLabelScores) {
+        if (enableConsistency && (!training || consistencyWhenTraining)) {
+            if (argLabel.matches("A[0-9]"))
+                for (Token token : argumentLabelScores.keySet())
+                    argumentLabelScores.get(token).remove(argLabel);
+
+            if (isRestrictedLabel(argLabel) && !predicate.syntacticHeadRelation.equals("NMOD")) {
+                Set<Token> restrictedTokens = new HashSet<Token>();
+                if (isRestrictedAncestor(arg, predicate))
+                    for (Token desc : frameSet.getDescendants(arg))
+                        if (isRestrictedDescendant(desc, predicate))
+                            restrictedTokens.add(desc);
+
+                if (isRestrictedDescendant(arg, predicate))
+                    for (Token anc : frameSet.getAncestors(arg))
+                        if (isRestrictedAncestor(anc, predicate))
+                            restrictedTokens.add(anc);
+
+                for (Token t : Sets.intersection(restrictedTokens, argumentLabelScores.keySet()))
+                    for (Iterator<String> itr = argumentLabelScores.get(t).keySet().iterator(); itr.hasNext(); )
+                        if (isRestrictedLabel(itr.next()))
+                            itr.remove();
+            }
+        }
+    }
+
+    private static boolean isRestrictedLabel(String label) {
+        return !(NIL_LABEL.equals(label) || "SU".equals(label) || label.contains("AM-"));
+    }
+
+    private static boolean isRestrictedDescendant(Token desc, Token predicate) {
+        return !desc.equals(predicate);
+    }
+
+    private static boolean isRestrictedAncestor(Token anc, Token predicate) {
+        return !(anc.equals(predicate) || anc.syntacticHeadRelation.equals("PMOD"));
     }
 
     /**
@@ -272,6 +307,18 @@ public abstract class ArgumentClassifier implements Serializable {
                 labels.addAll(s.argumentsOf(predicate).values());
 
         return labels;
+    }
+
+    /**
+     * Whether or not to enable checks for consistency (i.e. following semantic rules),
+     * and whether or not to do so during training.
+     *
+     * @param enableConsistency       whether or not to enable consistency
+     * @param consistencyWhenTraining whether or not to enable consistency during training
+     */
+    public void setConsistencyMode(boolean enableConsistency, boolean consistencyWhenTraining) {
+        this.enableConsistency = enableConsistency;
+        this.consistencyWhenTraining = consistencyWhenTraining;
     }
 
     /**

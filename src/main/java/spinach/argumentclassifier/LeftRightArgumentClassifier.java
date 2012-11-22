@@ -1,6 +1,5 @@
 package spinach.argumentclassifier;
 
-import com.google.common.collect.Sets;
 import edu.stanford.nlp.stats.ClassicCounter;
 import edu.stanford.nlp.stats.Counter;
 import edu.stanford.nlp.stats.Counters;
@@ -10,16 +9,23 @@ import spinach.sentence.SemanticFrameSet;
 import spinach.sentence.Token;
 import spinach.sentence.TokenSentenceAndPredicates;
 
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 
+/**
+ * An argument classifier implementation that goes from left to right through the predicates, and iterates
+ * left to right through each of the predicate's argument candidates, classifying them one by one.
+ */
 public class LeftRightArgumentClassifier extends ArgumentClassifier {
 
-    private static final boolean CONSISTENCY_MODULE = false;
-    private static final boolean CONS_WHEN_TRAINING = false;
+    private static final long serialVersionUID = 8196815613584637181L;
 
+    /**
+     * Instantiates a new LeftRightArgumentClassifier.
+     *
+     * @param classifier       a Perceptron classifier that this ArgumentClassifier is based upon
+     * @param featureGenerator that generates features for each input
+     */
     public LeftRightArgumentClassifier(PerceptronClassifier classifier, ArgumentFeatureGenerator featureGenerator) {
         super(classifier, featureGenerator);
     }
@@ -39,40 +45,18 @@ public class LeftRightArgumentClassifier extends ArgumentClassifier {
                 argumentLabelScores.put(possibleArg, argClassScores);
             }
 
-            for (Token possibleArg : argumentLabelScores.keySet()) {
+            for (Token arg : argumentLabelScores.keySet()) {
 
-                updateCounterScores(frameSet, possibleArg, predicate, argumentLabelScores.get(possibleArg), training);
-                String argLabel = Counters.argmax(argumentLabelScores.get(possibleArg));
+                updateCounterScores(frameSet, arg, predicate, argumentLabelScores.get(arg), training);
+                String argLabel = Counters.argmax(argumentLabelScores.get(arg));
 
-                if (argLabel != null && !argLabel.equals(NIL_LABEL))
-                    frameSet.addArgument(predicate, possibleArg, argLabel);
-                else
-                    continue;
-
-                if (CONSISTENCY_MODULE && (!training || CONS_WHEN_TRAINING)) {
-                    if (argLabel.matches("A[0-9]"))
-                        for (Token token : argumentLabelScores.keySet())
-                            argumentLabelScores.get(token).remove(argLabel);
-
-                    if (isRestrictedLabel(argLabel)) {
-
-                        Set<Token> restrictedTokens = frameSet.getDescendants(possibleArg);
-                        restrictedTokens.addAll(frameSet.getAncestors(possibleArg));
-
-                        for (Token t : Sets.intersection(argumentLabelScores.keySet(), restrictedTokens)) {
-                            for (Iterator<String> itr = argumentLabelScores.get(t).keySet().iterator(); itr.hasNext(); )
-                                if (isRestrictedLabel(itr.next()))
-                                    itr.remove();
-                        }
-                    }
+                if (argLabel != null && !argLabel.equals(NIL_LABEL)) {
+                    frameSet.addArgument(predicate, arg, argLabel);
+                    enforceConsistency(predicate, arg, argLabel, frameSet, training, argumentLabelScores);
                 }
             }
         }
 
         return frameSet;
-    }
-
-    private boolean isRestrictedLabel(String label) {
-        return !(ArgumentClassifier.NIL_LABEL.equals(label) || "SU".equals(label) || label.startsWith("AM-"));
     }
 }
