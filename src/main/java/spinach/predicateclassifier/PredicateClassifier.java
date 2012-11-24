@@ -170,6 +170,8 @@ public class PredicateClassifier implements Serializable {
      *
      * @param filePath file to load classifier from
      * @return imported classifier
+     * @throws IOException            if failed to load
+     * @throws ClassNotFoundException if class found is not an ArgumentClassifier
      */
     public static PredicateClassifier importClassifier(String filePath)
             throws IOException, ClassNotFoundException {
@@ -183,11 +185,11 @@ public class PredicateClassifier implements Serializable {
      * Saves this classifier's predicate classifier.
      *
      * @param filePath file to save classifier to
+     * @throws IOException if failed to export
      */
     public void exportClassifier(String filePath) throws IOException {
         ObjectOutputStream out = new ObjectOutputStream(new BufferedOutputStream(
                 new GZIPOutputStream(new FileOutputStream(filePath))));
-
         out.writeObject(this);
         out.close();
     }

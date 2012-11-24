@@ -28,7 +28,7 @@ import java.util.zip.GZIPOutputStream;
 public abstract class ArgumentClassifier implements Serializable {
 
     private boolean enableConsistency = true;
-    private boolean consistencyWhenTraining = false;
+    private boolean consistencyWhenTraining;
 
     protected final PerceptronClassifier classifier;
     private final ArgumentFeatureGenerator featureGenerator;
@@ -224,21 +224,15 @@ public abstract class ArgumentClassifier implements Serializable {
     void enforceConsistency(Token predicate, Token arg, String argLabel, SemanticFrameSet frameSet,
                             boolean training, Map<Token, Counter<String>> argumentLabelScores) {
         if (enableConsistency && (!training || consistencyWhenTraining)) {
-            if (argLabel.matches("A[0-9]"))
+            if (isRestrictedLabel(argLabel)) {
                 for (Token token : argumentLabelScores.keySet())
                     argumentLabelScores.get(token).remove(argLabel);
 
-            if (isRestrictedLabel(argLabel) && !predicate.syntacticHeadRelation.equals("NMOD")) {
-                Set<Token> restrictedTokens = new HashSet<Token>();
-                if (isRestrictedAncestor(arg, predicate))
-                    for (Token desc : frameSet.getDescendants(arg))
-                        if (isRestrictedDescendant(desc, predicate))
-                            restrictedTokens.add(desc);
+                if (arg.equals(predicate))
+                    return;
 
-                if (isRestrictedDescendant(arg, predicate))
-                    for (Token anc : frameSet.getAncestors(arg))
-                        if (isRestrictedAncestor(anc, predicate))
-                            restrictedTokens.add(anc);
+                Set<Token> restrictedTokens = ancestorsNotCrossingPredicate(arg, predicate, frameSet);
+                restrictedTokens.addAll(descendantsNotCrossingPredicate(arg, predicate, frameSet));
 
                 for (Token t : Sets.intersection(restrictedTokens, argumentLabelScores.keySet()))
                     for (Iterator<String> itr = argumentLabelScores.get(t).keySet().iterator(); itr.hasNext(); )
@@ -249,15 +243,31 @@ public abstract class ArgumentClassifier implements Serializable {
     }
 
     private static boolean isRestrictedLabel(String label) {
-        return !(NIL_LABEL.equals(label) || "SU".equals(label) || label.contains("AM-"));
+        return label.matches("A[0-9]");
     }
 
-    private static boolean isRestrictedDescendant(Token desc, Token predicate) {
-        return !desc.equals(predicate);
+    private static Set<Token> ancestorsNotCrossingPredicate(Token arg, Token predicate, SemanticFrameSet frameSet) {
+        Set<Token> ancestors = new HashSet<Token>();
+        Token t = frameSet.getParent(arg);
+        while (t != null && !predicate.equals(t)) {
+            ancestors.add(t);
+            t = frameSet.getParent(t);
+        }
+        return ancestors;
     }
 
-    private static boolean isRestrictedAncestor(Token anc, Token predicate) {
-        return !(anc.equals(predicate) || anc.syntacticHeadRelation.equals("PMOD"));
+    private static Set<Token> descendantsNotCrossingPredicate(Token arg, Token predicate, SemanticFrameSet frameSet) {
+        Set<Token> descendants = new HashSet<Token>();
+        List<Token> children = frameSet.getChildren(arg);
+        descendants.addAll(children);
+        for (Token child : children) {
+            if (!child.equals(predicate))
+                descendants.addAll(descendantsNotCrossingPredicate(child, predicate, frameSet));
+            else
+                descendants.remove(child);
+        }
+
+        return descendants;
     }
 
     /**
@@ -326,6 +336,8 @@ public abstract class ArgumentClassifier implements Serializable {
      *
      * @param filePath file to load classifier from
      * @return imported classifier
+     * @throws IOException            if failed to load
+     * @throws ClassNotFoundException if class found is not an ArgumentClassifier
      */
     public static ArgumentClassifier importClassifier(String filePath)
             throws IOException, ClassNotFoundException {
@@ -339,18 +351,12 @@ public abstract class ArgumentClassifier implements Serializable {
      * Saves this argument classifier.
      *
      * @param filePath file to save classifier to
+     * @throws IOException if failed to export
      */
-    public void exportClassifier(String filePath) {
-        ObjectOutputStream out;
-
-        try {
-            out = new ObjectOutputStream(new BufferedOutputStream(
-                    new GZIPOutputStream(new FileOutputStream(filePath))));
-
-            out.writeObject(this);
-            out.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    public void exportClassifier(String filePath) throws IOException {
+        ObjectOutputStream out = new ObjectOutputStream(new BufferedOutputStream(
+                new GZIPOutputStream(new FileOutputStream(filePath))));
+        out.writeObject(this);
+        out.close();
     }
 }

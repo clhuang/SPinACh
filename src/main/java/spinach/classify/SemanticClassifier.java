@@ -157,29 +157,6 @@ public abstract class SemanticClassifier implements GEN {
     private Map<Set<IndividualFeatureGenerator>, Double> calculatedF1s =
             new HashMap<Set<IndividualFeatureGenerator>, Double>();
 
-    private void recordPreviouslyCalculatedScores(String generators, double scores) {
-        String[] gen = generators.split("\\s+");
-        Set<IndividualFeatureGenerator> featureGenerators = new HashSet<IndividualFeatureGenerator>();
-
-        featureGeneratorLoop:
-        for (String s : gen) {
-            if ("hi/lo".equals(s))
-                s = "hi/lo support";
-            if ("support".equals(s))
-                continue;
-
-            for (IndividualFeatureGenerator f : featureGenerator.featureGeneratorSet()) {
-                if (f.identifier.equals(s)) {
-                    featureGenerators.add(f);
-                    continue featureGeneratorLoop;
-                }
-            }
-            System.err.println("feature generator " + s + " not found");
-        }
-
-        calculatedF1s.put(featureGenerators, scores);
-    }
-
     private double argumentTrainAndScore(Set<IndividualFeatureGenerator> featureGenerators) {
 
         System.err.print("Feature generators: ");
