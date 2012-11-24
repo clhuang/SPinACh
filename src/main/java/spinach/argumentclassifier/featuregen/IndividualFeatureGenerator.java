@@ -21,7 +21,15 @@ public abstract class IndividualFeatureGenerator implements Serializable {
         this.identifier = identifier;
     }
 
-    abstract Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument);
+    /**
+     * Generates a collection of features for a certain sentence, predicate and argument.
+     *
+     * @param frameSet  sentence with partially parsed semantic data
+     * @param predicate predicate of the sentence
+     * @param argument  argument of the predicate
+     * @return collection of features
+     */
+    protected abstract Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument);
 
     public final String identifier;
 

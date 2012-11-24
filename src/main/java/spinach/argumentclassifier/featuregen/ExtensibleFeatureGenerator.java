@@ -25,7 +25,7 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
     private static final IndividualFeatureGenerator EXIST_SEM_DEPREL = new IndividualFeatureGenerator("existSemDprel") {
 
         @Override
-        Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+        protected Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
             Set<String> features = new HashSet<String>();
 
             Collection<String> encounteredLabels = frameSet.argumentsOf(predicate).values();
@@ -40,11 +40,11 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
 
     private static final IndividualFeatureGenerator EXIST_CROSS = new SingularFeatureGenerator("existCross") {
         @Override
-        String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+        protected String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
             for (Token otherPredicate : frameSet.getPredicateList()) {
                 if (otherPredicate.equals(predicate) || otherPredicate.equals(argument))
                     continue;
-                for (Token otherArg : frameSet.argumentsOf(predicate).keySet()) {
+                for (Token otherArg : frameSet.argumentsOf(otherPredicate).keySet()) {
                     if (otherArg.equals(predicate) || otherArg.equals(argument))
                         continue;
                     if (existCross(predicate, argument, otherPredicate, otherArg))
@@ -72,7 +72,7 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
             new SingularFeatureGenerator("previousArgClass") {
 
                 @Override
-                String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+                protected String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
 
                     int mostRecentArgumentIndex = -1;
                     String mostRecentLabel = null;
@@ -95,7 +95,7 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
 
     private static final IndividualFeatureGenerator LINE_PATH = new IndividualFeatureGenerator("linePath") {
         @Override
-        Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+        protected Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
             StringBuilder linePathF = new StringBuilder("linePathF|");
             StringBuilder linePathL = new StringBuilder("linePathL|");
             StringBuilder linePathD = new StringBuilder("linePathD|");
@@ -126,7 +126,7 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
 
     private static final IndividualFeatureGenerator TREE_REL = new SingularFeatureGenerator("dpTreeRelation") {
         @Override
-        String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+        protected String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
             if (argument.equals(frameSet.getParent(predicate)))
                 return "treeRel|PChild";
 
@@ -150,7 +150,7 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
 
     private static final IndividualFeatureGenerator HILO_SUPPORT = new IndividualFeatureGenerator("hi/lo support") {
         @Override
-        Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+        protected Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
             Token hiVerb = Token.emptyToken;
             Token loVerb = Token.emptyToken;
             Token hiNoun = Token.emptyToken;
@@ -189,14 +189,14 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
 
     private static final IndividualFeatureGenerator ARG_LEAF = new SingularFeatureGenerator("isArgLeaf") {
         @Override
-        String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+        protected String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
             return frameSet.getChildren(argument).isEmpty() ? "argLeaf" : "argNotLeaf";
         }
     };
 
     private static final IndividualFeatureGenerator PATH_LEMMA = new SingularFeatureGenerator("dpPathLemma") {
         @Override
-        String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+        protected String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
             StringBuilder s = new StringBuilder("PAPathLs|");
 
             for (Token t : frameSet.syntacticPath(predicate, argument))
@@ -208,7 +208,7 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
 
     private static final IndividualFeatureGenerator T9COMBO = new IndividualFeatureGenerator("T9Combo") {
         @Override
-        Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+        protected Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
             Token argHead = frameSet.getParent(argument);
 
             if (argHead == null)
@@ -229,7 +229,7 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
     public ExtensibleFeatureGenerator() {
         addDefaultFeatures();
 
-        enabledFeatures.add(EXIST_SEM_DEPREL);
+        enabledFeatures.add(EXIST_CROSS);
     }
 
     @Override

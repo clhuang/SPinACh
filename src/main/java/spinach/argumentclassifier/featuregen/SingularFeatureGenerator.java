@@ -20,9 +20,17 @@ public abstract class SingularFeatureGenerator extends IndividualFeatureGenerato
     }
 
     @Override
-    final Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+    protected final Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
         return Collections.singleton(featureOf(frameSet, predicate, argument));
     }
 
-    abstract String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument);
+    /**
+     * Generates a feature for a certain sentence, predicate and argument.
+     *
+     * @param frameSet  sentence with partially parsed semantic data
+     * @param predicate predicate of the sentence
+     * @param argument  argument of the predicate
+     * @return the generated feature
+     */
+    protected abstract String featureOf(SemanticFrameSet frameSet, Token predicate, Token argument);
 }
