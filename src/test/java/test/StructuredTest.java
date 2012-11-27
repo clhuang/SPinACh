@@ -13,49 +13,46 @@ import spinach.sentence.SemanticFrameSet;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.TreeSet;
 
 import static test.TestConstants.*;
 
 public class StructuredTest {
+
+    private static List<SemanticFrameSet> trainingFrames;
+    private static final String ARG_CLASSIFIER_LOC = "src/test/resources/argumentClassifierEFA.gz";
+    private static final String PRED_CLASSIFIER_LOC = "src/test/resources/predicateClassifierA.gz";
+
+    private static final boolean LOAD_ARG_CLASSIFIER = true;
+    private static final boolean LOAD_PRED_CLASSIFIER = true;
+
+    public static final int BURN_IN_PERIOD = 800000;
+
     public static void main(String[] args) throws IOException, ClassNotFoundException {
 
-        List<SemanticFrameSet> frameSets = CorpusUtils.parseCorpus(TRAIN_CORPUS);
+        trainingFrames = CorpusUtils.parseCorpus(TRAIN_CORPUS);
+        System.out.println("Parsed train corpus");
 
-        ArgumentFeatureGenerator argumentFeatureGenerator = new ArgumentFeatureGenerator();
-        argumentFeatureGenerator.reduceFeatureSet(frameSets);
-        argumentFeatureGenerator.setAllowStructuralFeatures(true);
-        PerceptronClassifier argumentClassifierPerceptron =
-                new PerceptronClassifier(argumentFeatureGenerator.getAllowedNonStructuralFeatures(),
-                        ArgumentClassifier.getLabelSet(frameSets), NUM_EPOCHS);
+        ArgumentClassifier argumentClassifier = LOAD_ARG_CLASSIFIER ?
+                ArgumentClassifier.importClassifier(ARG_CLASSIFIER_LOC) :
+                initArgClassifier();
 
-        argumentClassifierPerceptron.setBurnInPeriod(BURN_IN_PERIOD);
+        argumentClassifier.setConsistencyMode(true, false);
 
-        ArgumentClassifier argumentClassifier =
-                //StructuredClassifier.importArgumentClassifier("src/test/resources/argumentClassifierB.gz");
-                new EasyFirstArgumentClassifier(argumentClassifierPerceptron, argumentFeatureGenerator);
-
-        PredicateFeatureGenerator predicateFeatureGenerator = new PredicateFeatureGenerator();
-        predicateFeatureGenerator.reduceFeatureSet(frameSets);
-        PerceptronClassifier predicateClassifierPerceptron =
-                new PerceptronClassifier(predicateFeatureGenerator.getAllowedNonStructuralFeatures(),
-                        PredicateClassifier.getLabelSet(), 10);
-        PredicateClassifier predicateClassifier =
-                PredicateClassifier.importClassifier("src/test/resources/predicateClassifierA.gz");
-        //new PredicateClassifier(predicateClassifierPerceptron, predicateFeatureGenerator);
+        PredicateClassifier predicateClassifier = LOAD_PRED_CLASSIFIER ?
+                PredicateClassifier.importClassifier(PRED_CLASSIFIER_LOC) :
+                initPredClassifier();
 
         StructuredClassifier classifier = new StructuredClassifier(argumentClassifier, predicateClassifier,
-                NUM_EPOCHS, frameSets);
+                NUM_EPOCHS, trainingFrames);
 
-        classifier.VERBOSE = true;
-
-        //classifier.trainPredicateClassifier();
-        classifier.trainArgumentClassifier();
-
-        argumentClassifier.exportClassifier("src/test/resources/argumentClassifierEFA.gz");
-        //predicateClassifier.exportClassifier("src/test/resources/predicateClassifierA.gz");
-
-        //System.out.println("Exported classifiers");
+        if (!LOAD_PRED_CLASSIFIER) {
+            classifier.trainPredicateClassifier();
+            predicateClassifier.exportClassifier(PRED_CLASSIFIER_LOC);
+        }
+        if (!LOAD_ARG_CLASSIFIER) {
+            classifier.trainArgumentClassifier();
+            argumentClassifier.exportClassifier(ARG_CLASSIFIER_LOC);
+        }
 
         List<SemanticFrameSet> testFrameSets = CorpusUtils.parseCorpus(DEVEL_CORPUS);
         System.out.println("parsed devel corpus");
@@ -69,15 +66,36 @@ public class StructuredTest {
         m.recalculateScores();
 
         System.out.format("Predicates %d %d %d\n", m.predicateCorrect(), m.predicatePredicted(), m.predicateGold());
-
-        for (String s : new TreeSet<String>(m.argumentF1s().keySet())) {
-            if (!s.equals(Metric.TOTAL))
-                System.out.format("%s %.4f %.4f %.4f\n", s, m.argumentPrecisions().getCount(s),
-                        m.argumentRecalls().getCount(s), m.argumentF1s().getCount(s));
-        }
         String s = Metric.TOTAL;
         System.out.format("%s %.4f %.4f %.4f\n", s, m.argumentPrecisions().getCount(s),
                 m.argumentRecalls().getCount(s), m.argumentF1s().getCount(s));
 
+    }
+
+    private static ArgumentClassifier initArgClassifier() {
+        ArgumentFeatureGenerator argumentFeatureGenerator = new ArgumentFeatureGenerator();
+        argumentFeatureGenerator.reduceFeatureSet(trainingFrames);
+        System.out.println("Arg classifier reduced feature set");
+        argumentFeatureGenerator.setAllowStructuralFeatures(true);
+        PerceptronClassifier argumentClassifierPerceptron =
+                new PerceptronClassifier(argumentFeatureGenerator.getAllowedNonStructuralFeatures(),
+                        ArgumentClassifier.getLabelSet(trainingFrames), NUM_EPOCHS);
+        System.out.println("Created arg classifier perceptron");
+
+        argumentClassifierPerceptron.setBurnInPeriod(BURN_IN_PERIOD);
+
+        return new EasyFirstArgumentClassifier(argumentClassifierPerceptron, argumentFeatureGenerator);
+    }
+
+    private static PredicateClassifier initPredClassifier() {
+        PredicateFeatureGenerator predicateFeatureGenerator = new PredicateFeatureGenerator();
+        predicateFeatureGenerator.reduceFeatureSet(trainingFrames);
+        System.out.println("Pred classifier reduced feature set");
+        PerceptronClassifier predicateClassifierPerceptron =
+                new PerceptronClassifier(predicateFeatureGenerator.getAllowedNonStructuralFeatures(),
+                        PredicateClassifier.getLabelSet(), NUM_EPOCHS);
+        System.out.println("Created pred classifier perceptron");
+
+        return new PredicateClassifier(predicateClassifierPerceptron, predicateFeatureGenerator);
     }
 }
