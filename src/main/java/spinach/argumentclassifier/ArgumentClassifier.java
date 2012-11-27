@@ -37,6 +37,8 @@ public abstract class ArgumentClassifier implements Serializable {
 
     private static final long serialVersionUID = 1008397275270930536L;
 
+    private static final int FEATURE_COUNT_THRESHOLD = 3;
+
     /**
      * Constructs an ArgumentClassifier with a perceptron and a feature generator
      *
@@ -160,7 +162,7 @@ public abstract class ArgumentClassifier implements Serializable {
         for (SemanticFrameSet frameSet : frameSets)
             dataset.addAll(datasetFrom(frameSet));
 
-        dataset.applyFeatureCountThreshold(3);
+        dataset.applyFeatureCountThreshold(FEATURE_COUNT_THRESHOLD);
 
         classifier.train(dataset);
     }

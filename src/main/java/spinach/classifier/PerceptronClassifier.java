@@ -197,7 +197,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
         for (String label : dataset.labelIndex())
             zWeights.put(label, new LabelWeights(numFeatures));
 
-        System.err.println("Running perceptronClassifier on " + dataset.size() + " features");
+        System.err.println("Running perceptronClassifier on " + dataset.size() + " data");
         long startTime = System.currentTimeMillis();
 
         for (int t = 0; t < epochs; t++) {
@@ -276,7 +276,7 @@ public class PerceptronClassifier implements Classifier, Serializable {
             zWeights.get(goldLabel).update(featureIndices, 1.0);
         }
 
-        if (totalIterationCount++ == burnInPeriod)
+        if (totalIterationCount++ >= burnInPeriod)
             autoUpdateWeights = true;
 
         for (LabelWeights zw : zWeights.values())
