@@ -22,7 +22,7 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
     private final Set<IndividualFeatureGenerator> featureGeneratorSet =
             new HashSet<IndividualFeatureGenerator>();
 
-    private static final IndividualFeatureGenerator EXIST_SEM_DEPREL = new IndividualFeatureGenerator("existSemDprel") {
+    private static final IndividualFeatureGenerator EXIST_SEM_DPREL = new IndividualFeatureGenerator("existSemDprel") {
 
         @Override
         protected Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
@@ -66,7 +66,6 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
                     (a.comesBefore(c) && b.comesBefore(a)));
         }
     };
-
 
     private static final IndividualFeatureGenerator PREVIOUS_ARG_CLASS =
             new SingularFeatureGenerator("previousArgClass") {
@@ -265,7 +264,7 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
     }
 
     private void addDefaultFeatures() {
-        addFeature(EXIST_SEM_DEPREL);
+        addFeature(EXIST_SEM_DPREL);
         addFeature(EXIST_CROSS);
         addFeature(PREVIOUS_ARG_CLASS);
         addFeature(LINE_PATH);
