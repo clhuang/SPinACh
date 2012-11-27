@@ -23,12 +23,15 @@ public class StructuredClassifier extends SemanticClassifier {
     private static final int TRAIN_ARGUMENT_C = 2;
     private transient int trainingMode;
 
+    private int epochs;
+
     public boolean VERBOSE = false;
 
     /**
      * When training argument classifier, use predicted predicates or gold predicates?
      */
     private final boolean PREDICTED_PRED_WHILE_ARG_TRAINING = false;
+    private static final int DEFAULT_EPOCHS = 10;
 
     /**
      * Generates a structured classifier with a certain argument classifier, predicate classifier,
@@ -41,11 +44,12 @@ public class StructuredClassifier extends SemanticClassifier {
      */
     public StructuredClassifier(ArgumentClassifier argumentClassifier, PredicateClassifier predicateClassifier,
                                 int epochs, Collection<SemanticFrameSet> trainingFrames) {
-        super(argumentClassifier, predicateClassifier, epochs, trainingFrames);
+        super(argumentClassifier, predicateClassifier, trainingFrames);
+        this.epochs = epochs;
     }
 
     /**
-     * Instantiates a new StructuredClassifier, which runs {@value SemanticClassifier#DEFAULT_EPOCHS} epochs.
+     * Instantiates a new StructuredClassifier, which runs {@value #DEFAULT_EPOCHS} epochs.
      *
      * @param argumentClassifier  ArgumentClassifier to use
      * @param predicateClassifier PredicateClassifier to use
@@ -53,7 +57,7 @@ public class StructuredClassifier extends SemanticClassifier {
      */
     public StructuredClassifier(ArgumentClassifier argumentClassifier, PredicateClassifier predicateClassifier,
                                 Collection<SemanticFrameSet> trainingFrames) {
-        super(argumentClassifier, predicateClassifier, trainingFrames);
+        this(argumentClassifier, predicateClassifier, DEFAULT_EPOCHS, trainingFrames);
     }
 
     /**

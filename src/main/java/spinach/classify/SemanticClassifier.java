@@ -26,26 +26,8 @@ public abstract class SemanticClassifier implements GEN {
     protected transient Collection<SemanticFrameSet> testingFrames;
     protected int epochs;
 
-    public static final int DEFAULT_EPOCHS = 10;
-
     /**
      * Instantiates a new SemanticClassifier.
-     *
-     * @param argumentClassifier  ArgumentClassifier to use
-     * @param predicateClassifier PredicateClassifier to use
-     * @param epochs              number of times to iterate through training datasets
-     * @param trainingFrames      set of semantic framesets to train with
-     */
-    protected SemanticClassifier(ArgumentClassifier argumentClassifier, PredicateClassifier predicateClassifier,
-                                 int epochs, Collection<SemanticFrameSet> trainingFrames) {
-        this.argumentClassifier = argumentClassifier;
-        this.predicateClassifier = predicateClassifier;
-        this.trainingFrames = trainingFrames;
-        this.epochs = epochs;
-    }
-
-    /**
-     * Instantiates a new SemanticClassifier, which runs {@value #DEFAULT_EPOCHS} epochs.
      *
      * @param argumentClassifier  ArgumentClassifier to use
      * @param predicateClassifier PredicateClassifier to use
@@ -53,7 +35,9 @@ public abstract class SemanticClassifier implements GEN {
      */
     protected SemanticClassifier(ArgumentClassifier argumentClassifier, PredicateClassifier predicateClassifier,
                                  Collection<SemanticFrameSet> trainingFrames) {
-        this(argumentClassifier, predicateClassifier, DEFAULT_EPOCHS, trainingFrames);
+        this.argumentClassifier = argumentClassifier;
+        this.predicateClassifier = predicateClassifier;
+        this.trainingFrames = trainingFrames;
     }
 
     @Override

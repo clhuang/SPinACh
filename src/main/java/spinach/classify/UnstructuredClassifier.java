@@ -20,19 +20,6 @@ public class UnstructuredClassifier extends SemanticClassifier {
      *
      * @param argumentClassifier  argument classifier to use
      * @param predicateClassifier predicate classifier to use
-     * @param epochs              number of times to iterate through training dataset
-     * @param trainingFrames      collection of semantic framesets used to train
-     */
-    public UnstructuredClassifier(ArgumentClassifier argumentClassifier, PredicateClassifier predicateClassifier,
-                                  int epochs, Collection<SemanticFrameSet> trainingFrames) {
-        super(argumentClassifier, predicateClassifier, epochs, trainingFrames);
-    }
-
-    /**
-     * Instantiates a new UnstructuredClassifier, which runs {@value SemanticClassifier#DEFAULT_EPOCHS} epochs.
-     *
-     * @param argumentClassifier  argument classifier to use
-     * @param predicateClassifier predicate classifier to use
      * @param trainingFrames      collection of semantic framesets used to train
      */
     public UnstructuredClassifier(ArgumentClassifier argumentClassifier, PredicateClassifier predicateClassifier,
