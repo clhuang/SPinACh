@@ -221,14 +221,49 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
         }
     };
 
+    private static final IndividualFeatureGenerator LR_ARGNUM = new IndividualFeatureGenerator("leftRightArgNum") {
+        @Override
+        protected Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+            int toLeft = 0;
+            int toRight = 0;
+
+            for (Token otherArg : frameSet.argumentsOf(predicate).keySet())
+                if (otherArg.comesBefore(argument))
+                    toLeft++;
+                else
+                    toRight++;
+            return ImmutableSet.of(STRUCTURAL_FEATURE_PREFIX + "oArgsL|" + toLeft,
+                    STRUCTURAL_FEATURE_PREFIX + "oArgsR|" + toRight);
+        }
+    };
+
+    private static final IndividualFeatureGenerator LR_CARGNUM = new IndividualFeatureGenerator("LRCArgNum") {
+        @Override
+        protected Collection<String> featuresOf(SemanticFrameSet frameSet, Token predicate, Token argument) {
+            int toLeft = 0;
+            int toRight = 0;
+
+            for (Map.Entry<Token, String> otherArg : frameSet.argumentsOf(predicate).entrySet()) {
+                if (!otherArg.getValue().matches("A[0-9]"))
+                    continue;
+
+                if (otherArg.getKey().comesBefore(argument))
+                    toLeft++;
+                else
+                    toRight++;
+            }
+            return ImmutableSet.of(STRUCTURAL_FEATURE_PREFIX + "oArgsL|" + toLeft,
+                    STRUCTURAL_FEATURE_PREFIX + "oArgsR|" + toRight);
+        }
+    };
+
     /**
      * Generates a new ExtensibleFeatureGenerator, and adds
      * default features to the set of possible features.
      */
     public ExtensibleFeatureGenerator() {
         addDefaultFeatures();
-
-        enabledFeatures.add(EXIST_CROSS);
+        //enabledFeatures.add(LR_CARGNUM);
     }
 
     @Override
@@ -273,6 +308,8 @@ public class ExtensibleFeatureGenerator extends ArgumentFeatureGenerator {
         addFeature(ARG_LEAF);
         addFeature(T9COMBO);
         addFeature(PATH_LEMMA);
+        addFeature(LR_ARGNUM);
+        addFeature(LR_CARGNUM);
     }
 
     /**

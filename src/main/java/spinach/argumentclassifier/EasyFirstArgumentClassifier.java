@@ -23,6 +23,9 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier {
 
     private static final long serialVersionUID = 7822422638276122112L;
 
+    private transient Map<Token, Counter<String>> argumentLabelScores;
+    private transient SemanticFrameSet frameSet;
+
     /**
      * Instantiates a new EasyFirstArgumentClassifier.
      *
@@ -36,11 +39,10 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier {
     @Override
     protected SemanticFrameSet framesWithArguments(TokenSentenceAndPredicates sentenceAndPredicates, boolean training) {
 
-        SemanticFrameSet frameSet = new SemanticFrameSet(sentenceAndPredicates);
+        frameSet = new SemanticFrameSet(sentenceAndPredicates);
 
         for (Token predicate : frameSet.getPredicateList()) {
-            Map<Token, Counter<String>> argumentLabelScores =
-                    new LinkedHashMap<Token, Counter<String>>();
+            argumentLabelScores = new LinkedHashMap<Token, Counter<String>>();
 
             for (Token possibleArg :
                     ArgumentClassifier.argumentCandidates(sentenceAndPredicates, predicate)) {
@@ -48,7 +50,7 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier {
             }
 
             while (!argumentLabelScores.isEmpty()) {
-                Pair<Token, String> bestArgAndLabel = bestArgAndLabel(argumentLabelScores);
+                Pair<Token, String> bestArgAndLabel = bestArgAndLabel();
                 Token arg = bestArgAndLabel.first();
                 String argLabel = bestArgAndLabel.second();
 
@@ -57,19 +59,14 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier {
                 if (argLabel == null || argLabel.equals(NIL_LABEL))
                     continue;
 
-                frameSet.addArgument(predicate, arg, argLabel);
-
-                for (Map.Entry<Token, Counter<String>> entry : argumentLabelScores.entrySet())
-                    updateCounterScores(frameSet, entry.getKey(), predicate, entry.getValue(), training);
-
-                enforceConsistency(predicate, arg, argLabel, frameSet, training, argumentLabelScores);
+                classifyArg(arg, predicate, argLabel, training);
             }
         }
 
         return frameSet;
     }
 
-    private static Pair<Token, String> bestArgAndLabel(Map<Token, Counter<String>> argumentLabelScores) {
+    private Pair<Token, String> bestArgAndLabel() {
         double bestScore = Double.NEGATIVE_INFINITY;
         Token best = null;
         String argMax = null;
@@ -85,5 +82,14 @@ public class EasyFirstArgumentClassifier extends ArgumentClassifier {
         }
 
         return new Pair<Token, String>(best, argMax);
+    }
+
+    private void classifyArg(Token arg, Token predicate, String argLabel, boolean training) {
+        frameSet.addArgument(predicate, arg, argLabel);
+
+        for (Map.Entry<Token, Counter<String>> entry : argumentLabelScores.entrySet())
+            updateCounterScores(frameSet, entry.getKey(), predicate, entry.getValue(), training);
+
+        enforceConsistency(predicate, arg, argLabel, frameSet, training, argumentLabelScores);
     }
 }

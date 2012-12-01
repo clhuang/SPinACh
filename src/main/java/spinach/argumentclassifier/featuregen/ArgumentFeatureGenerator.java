@@ -36,9 +36,9 @@ public class ArgumentFeatureGenerator implements Serializable {
      * Any non-structural features appearing less than a certain number of times
      * will be ignored.
      */
-    private static final int FEATURE_COUNT_THRESHOLD = 5;
+    private static final int FEATURE_COUNT_THRESHOLD = 3;
 
-    private Set<String> allowedNonStructuralFeatures;
+    private Set<String> allowedNonStructuralFeatures = new HashSet<String>();
     private boolean allowStructuralFeatures;
 
     /**
